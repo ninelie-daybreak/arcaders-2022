@@ -1,8 +1,10 @@
 extern crate sdl2;
 
+mod events;
+
+use events::Events;
 use sdl2::pixels::Color;
-use std::thread;
-use std::time::Duration;
+
 
 fn main() {
     // Initialize sdl2
@@ -18,11 +20,19 @@ fn main() {
     
     let mut canvas = window.into_canvas().accelerated().build().unwrap();
 
-    // Render a fully black window
-    canvas.set_draw_color(Color::RGB(0, 0, 0));
-    canvas.clear();
-    canvas.present();
+    // Prepare the events record
+    let mut events = Events::new(sdl_context.event_pump().unwrap());
 
-    thread::sleep(Duration::from_millis(3000));
+    loop {
+        events.pump();
 
+        if events.quit || events.key_escape {
+            break;
+        }
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+        canvas.present();
+
+    }
 }
