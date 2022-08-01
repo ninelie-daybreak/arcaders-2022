@@ -11,8 +11,8 @@ macro_rules! struct_events {
             // Some(true)   => Was just pressed
             // Some(flase)  => Was just released
             // None         => Nothing happening _now_
-            $( pub  $k_alias: Option<bool),*
-        };
+            $( pub  $k_alias: Option<bool> ),*
+        }
 
         impl ImmediateEvents {
             pub fn new() -> ImmediateEvents {
@@ -37,7 +37,7 @@ macro_rules! struct_events {
             pub fn new(pump: EventPump) -> Events {
                 Events {
                     pump: pump,
-                    now : ImmediateEvents::new()
+                    now : ImmediateEvents::new(),
 
                     // By default, initialize every key with _not pressed_
                     $( $k_alias: false ),*
@@ -82,7 +82,8 @@ macro_rules! struct_events {
                                 }
                             ),*
                             _ => {}
-                        }
+                        },
+
                         _ => {}
                     }
                 }
