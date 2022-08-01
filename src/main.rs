@@ -12,7 +12,13 @@ use sdl2::pixels::Color;
 // We cannot call functions at top-level. However, `struct_events` is not your 
 // usual function : it's a macro .Which means that you can use a macro to do 
 // pretty much anything _normal_ code would.
-struct_events!();
+struct_events!{
+    keyboard: {
+        key_escape: Escape,
+        key_up: Up,
+        key_down: Down
+    }
+}
 
 
 fn main() {
@@ -35,7 +41,7 @@ fn main() {
     loop {
         events.pump();
 
-        if true {
+        if events.now.key_escape == Some(true) {
             break;
         }
 
