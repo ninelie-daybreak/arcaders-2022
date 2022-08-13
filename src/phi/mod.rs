@@ -2,7 +2,7 @@
 // module. This is necessary because macros cannot be namespaced -- macro 
 // expansion happens before the concept of namespace event starts to _exist_ in
 // the compilation timeline.
-#[macro_use]#[macro_use]
+#[macro_use]
 mod events;
 
 use sdl2::render::WindowCanvas;
