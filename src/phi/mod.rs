@@ -51,7 +51,7 @@ where
     let mut timer = sdl_context.timer().unwrap();
 
     // Create the window
-    let window = video.window("ArcadeRS Shooter", 800, 600)
+    let window = video.window(title, 800, 600)
         .position_centered()
         .opengl()
         .build()
@@ -66,9 +66,10 @@ where
     };
     
     // Create the default view
-    let mut current_view: Box<dyn View> = Box::new(crate::views::DefaultView);
+    let mut current_view = init(&mut context);
 
     // Frame timing
+
     let interval = 1_000 / 60;
     let mut before = timer.ticks();
     let mut last_second = timer.ticks();
