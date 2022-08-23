@@ -12,6 +12,8 @@ struct_events! {
         key_escape: Escape,
         key_up: Up,
         key_down: Down,
+        key_left: Left,
+        key_right: Right,
         key_space: Space
     },
     else: {
