@@ -22,6 +22,27 @@ impl Rectangle {
         // SdlRect::new : `(i32, i32, i32, i32) -> Result<Option<SdlRect>>
         SdlRect::new(self.x as i32, self.y as i32, self.w as u32, self.h as u32)
     }
+
+    /// Return a (perhaps moved) rectangle which is contained by a `parent`
+    /// rectangle. If it can indeed be moved to fit, return `Some(result)`;
+    /// otherwise, return `None` .
+    pub fn move_inside(self, parent: Rectangle) -> Option<Rectangle> {
+        // It must be smaller than the parent rectangle to fit in it.
+        if self.w > parent.w || self.h > parent.h {
+            return None;
+        }
+
+        Some(Rectangle {
+            w: self.w,
+            h: self.h,
+            x: if self.x < parent.x { parent.x }
+                else if self.x + self.w >= parent.x + parent.w { parent.x + parent.w - self.w}
+                else { self.x },
+            y: if self.y < parent.y { parent.y }
+                else if self.y + self.h >= parent.y + parent.h { parent.y + parent.h - self.h }
+                else { self.y },
+        })
+    }
 }
 
 struct Ship {
@@ -52,7 +73,7 @@ impl View for ShipView {
             return ViewAction::Quit;
         }
 
-        // TODO: Insert the moving logic here
+        // Moving logic
         let diagonal = 
             (phi.events.key_up ^ phi.events.key_down) &&
             (phi.events.key_left ^ phi.events.key_right);
@@ -75,6 +96,22 @@ impl View for ShipView {
 
         self.player.rect.x += dx;
         self.player.rect.y += dy;
+
+        // The movable region spans the entire height of the window and 70% of its
+        // width. This way, the player cannot get to the far right of the screen, where
+        // we will spawn the asteroids, and get immediately eliminated.
+        //
+        // We restrain the width because most screens are wider than they are high.
+        let movable_region = Rectangle { 
+            x: 0.0,
+            y: 0.0,
+            w: phi.output_size().0 * 0.70,
+            h: phi.output_size().1,
+        };
+
+        // If the player cannot fit in the screen, then there is a problem and
+        // the game should be promptly aborted.
+        self.player.rect = self.player.rect.move_inside(movable_region).unwrap();
 
         // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
