@@ -2,6 +2,7 @@ use crate::phi::{Phi, View, ViewAction};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect as SdlRect;
 
+const PLAYER_SPEED:f64 = 180.0;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rectangle {
     pub x: f64,
@@ -46,12 +47,34 @@ impl ShipView {
 }
 
 impl View for ShipView {
-    fn render(&mut self, phi: &mut Phi, _: f64) -> ViewAction {
+    fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
             return ViewAction::Quit;
         }
 
         // TODO: Insert the moving logic here
+        let diagonal = 
+            (phi.events.key_up ^ phi.events.key_down) &&
+            (phi.events.key_left ^ phi.events.key_right);
+
+        let moved = 
+            if diagonal { 1.0 / 2.0f64.sqrt()}
+            else { 1.0 } * PLAYER_SPEED * elapsed;
+        
+        let dx = match (phi.events.key_left, phi.events.key_right) {
+            (true, true) | (false, false) => 0.0,
+            (true, false) => -moved,
+            (false, true) => moved,
+        };
+
+        let dy = match (phi.events.key_up, phi.events.key_down) {
+            (true, true) | (false, false) => 0.0,
+            (true, false) => -moved,
+            (false, true) => moved,
+        };
+
+        self.player.rect.x += dx;
+        self.player.rect.y += dy;
 
         // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
