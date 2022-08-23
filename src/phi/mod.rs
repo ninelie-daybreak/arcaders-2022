@@ -28,6 +28,13 @@ pub struct Phi {
     pub renderer: WindowCanvas,
 }
 
+impl Phi{
+    pub fn output_size(&self) -> (f64, f64) {
+        let (w, h) = self.renderer.output_size().unwrap();
+        (w as f64, h as f64)
+    }
+}
+
 /// A `ViewAction` is a way for the currently executed view to
 /// communicate with the game loop. It specifies which action
 /// should be executed before the next rendering.
@@ -58,6 +65,7 @@ where
     let window = video.window(title, 800, 600)
         .position_centered()
         .opengl()
+        .resizable()
         .build()
         .unwrap();
 
@@ -105,7 +113,7 @@ where
 
         // Logic & rendering
 
-        context.events.pump();
+        context.events.pump(&mut context.renderer);
 
         match current_view.render(&mut context, elapsed) {
             ViewAction::None => context.renderer.present(),
