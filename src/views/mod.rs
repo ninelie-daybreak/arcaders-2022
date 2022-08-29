@@ -5,7 +5,11 @@ use std::path::Path;
 use sdl2::render::{Texture, TextureQuery};
 use sdl2::image::LoadTexture;
 
+/// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
+
+const SHIP_W: f64 = 43.0;
+const SHIP_H: f64 = 39.0;
 
 struct Ship {
     rect: Rectangle,
@@ -17,23 +21,15 @@ pub struct ShipView {
 
 impl ShipView {
     pub fn new(phi: &mut Phi) -> ShipView {
-        //? Load the texture from the filesystem
-        //? If it cannot be found, then there is no point in continuing: panic!
-        let tex = phi.renderer.texture_creator().load_texture(Path::new("src/assets/spaceship.png")).unwrap();
-
-        //? Destructure some properties of the texture, notably width and
-        //? height, which we will use for the ship's bounding box.
-        let TextureQuery { width, height, ..} = tex.query();
-
         ShipView {
             player: Ship { 
                 rect: Rectangle {
                     x: 64.0,
                     y: 64.0,
-                    w: width as f64,
-                    h: height as f64,
+                    w: SHIP_W,
+                    h: SHIP_H,
                 },
-                tex: tex,
+                tex: phi.renderer.texture_creator().load_texture(Path::new("assets/spaceship.png")).unwrap(),
             }
         }
     }
@@ -100,8 +96,8 @@ impl View for ShipView {
             //? The "source region" of the image. Here, we take the entire image, from
             //? the top-left corner (0,0) to the bottom-right one (rect.w, rect.h).
             Rectangle {
-                x: 0.0,
-                y: 0.0,
+                x: SHIP_W * 0.0,
+                y: SHIP_H * 1.0,
                 w: self.player.rect.w,
                 h: self.player.rect.h,
             }.to_sdl(),
