@@ -39,7 +39,7 @@ impl Sprite {
     pub fn region(&self, rect: Rectangle) -> Option<Sprite> {
         let new_src = Rectangle {
             x: rect.x + self.src.x,
-            y: rect.x + self.src.y,
+            y: rect.y + self.src.y,
             ..rect
         };
 
@@ -54,6 +54,7 @@ impl Sprite {
         }
     }
 
+    // Returns the dimensions of the region.
     pub fn size(&self) -> (f64, f64) {
         (self.src.w, self.src.h)
     }
