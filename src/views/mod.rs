@@ -1,9 +1,7 @@
 use crate::phi::{Phi, View, ViewAction};
-use sdl2::pixels::Color;
 use crate::phi::data::Rectangle;
-use std::path::Path;
-use sdl2::render::{Texture, TextureQuery};
-use sdl2::image::LoadTexture;
+use crate::phi::gfx::Sprite;
+use sdl2::pixels::Color;
 
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
@@ -11,9 +9,25 @@ const PLAYER_SPEED:f64 = 180.0;
 const SHIP_W: f64 = 43.0;
 const SHIP_H: f64 = 39.0;
 
+/// The different states our ship might be in. In the image, they're ordered
+/// from left to right, then top to bottom.
+#[derive(Clone, Copy)]
+enum ShipFrame {
+    UpNorm   = 0,
+    UpFast   = 1,
+    UpSlow   = 2,
+    MidNorm  = 3,
+    MidFast  = 4,
+    MidSlow  = 5,
+    DownNorm = 6,
+    DownFast = 7,
+    DownSlow = 8
+}
+
 struct Ship {
     rect: Rectangle,
-    tex: Texture,
+    sprites: Vec<Sprite>,
+    current: ShipFrame,
 }
 pub struct ShipView {
     player: Ship,
@@ -21,6 +35,23 @@ pub struct ShipView {
 
 impl ShipView {
     pub fn new(phi: &mut Phi) -> ShipView {
+        let spritesheet = Sprite::load(&mut phi.renderer, "assets/spaceship.png").unwrap();
+        
+        //? When we know in advance how many elements the `Vec` we contain, we 
+        //? can allocate the good amount of data up-front.
+        let mut sprites = Vec::with_capacity(9);
+
+        for y in 0..3 {
+            for x in 0..3 {
+                sprites.push(spritesheet.region(Rectangle {
+                    w: SHIP_W,
+                    h: SHIP_H,
+                    x: SHIP_W * x as f64,
+                    y: SHIP_H * y as f64,
+                }).unwrap());
+            }
+        }
+
         ShipView {
             player: Ship { 
                 rect: Rectangle {
@@ -29,7 +60,8 @@ impl ShipView {
                     w: SHIP_W,
                     h: SHIP_H,
                 },
-                tex: phi.renderer.texture_creator().load_texture(Path::new("assets/spaceship.png")).unwrap(),
+                sprites: sprites,
+                current: ShipFrame::MidNorm,
             }
         }
     }
@@ -67,7 +99,7 @@ impl View for ShipView {
 
         // The movable region spans the entire height of the window and 70% of its
         // width. This way, the player cannot get to the far right of the screen, where
-        // we will spawn the asteroids, and get immediately eliminated.
+        // we will spawn the asnewteroids, and get immediately eliminated.
         //
         // We restrain the width because most screens are wider than they are high.
         let movable_region = Rectangle { 
@@ -81,6 +113,19 @@ impl View for ShipView {
         // the game should be promptly aborted.
         self.player.rect = self.player.rect.move_inside(movable_region).unwrap();
 
+        // Select the appropriate sprite of the ship to show.
+        self.player.current = 
+            if dx == 0.0 && dy < 0.0       { ShipFrame::UpNorm }
+            else if dx > 0.0 && dy < 0.0   { ShipFrame::UpFast }
+            else if dx < 0.0 && dy < 0.0   { ShipFrame::UpSlow }
+            else if dx == 0.0 && dy == 0.0 { ShipFrame::MidNorm }
+            else if dx > 0.0 && dy == 0.0  { ShipFrame::MidFast }
+            else if dx < 0.0 && dy == 0.0  { ShipFrame::MidSlow }
+            else if dx == 0.0 && dy > 0.0  { ShipFrame::DownNorm }
+            else if dx > 0.0 && dy > 0.0   { ShipFrame::DownFast }
+            else if dx < 0.0 && dy > 0.0   { ShipFrame::DownSlow }
+            else { unreachable!() };
+
         // Clear the screen
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
         phi.renderer.clear();
@@ -89,22 +134,8 @@ impl View for ShipView {
         phi.renderer.set_draw_color(Color::RGB(200, 200, 50));
         phi.renderer.fill_rect(self.player.rect.to_sdl()).unwrap();
 
-        //? We add this part:
-        // Render the ship
-        //? The texture to render is `self.player.text`(we borrow it mutably)
-        phi.renderer.copy(&mut self.player.tex,
-            //? The "source region" of the image. Here, we take the entire image, from
-            //? the top-left corner (0,0) to the bottom-right one (rect.w, rect.h).
-            Rectangle {
-                x: SHIP_W * 0.0,
-                y: SHIP_H * 1.0,
-                w: self.player.rect.w,
-                h: self.player.rect.h,
-            }.to_sdl(),
-            //? The destination of the image. We simply provide the bounding box, the
-            //? renderer takes care fo the rest.
-            self.player.rect.to_sdl()
-        ).unwrap();
+        self.player.sprites[self.player.current as usize]
+            .render(&mut phi.renderer, self.player.rect);
 
         ViewAction::None
     }
