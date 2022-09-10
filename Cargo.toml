@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies.sdl2]
 version = "0.35"
 default-features = false
-features = ["image", "unsafe_textures"]
+features = ["image", "unsafe_textures", "ttf"]
