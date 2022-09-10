@@ -1,6 +1,6 @@
 use crate::phi::{Phi, View, ViewAction};
 use crate::phi::data::Rectangle;
-use crate::phi::gfx::Sprite;
+use crate::phi::gfx::{Sprite, CopySprite};
 use sdl2::pixels::Color;
 
 /// Pixels traveled by the player's ship every second, when it is moving
@@ -134,8 +134,10 @@ impl View for ShipView {
         phi.renderer.set_draw_color(Color::RGB(200, 200, 50));
         phi.renderer.fill_rect(self.player.rect.to_sdl()).unwrap();
 
-        self.player.sprites[self.player.current as usize]
-            .render(&mut phi.renderer, self.player.rect);
+        phi.renderer.copy_sprite(
+            &self.player.sprites[self.player.current as usize],
+            self.player.rect
+        );
 
         ViewAction::None
     }
