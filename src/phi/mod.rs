@@ -70,6 +70,7 @@ where
     let video = sdl_context.video().unwrap();
     let mut timer = sdl_context.timer().unwrap();
     let _image_context = ::sdl2::image::init(::sdl2::image::InitFlag::PNG).unwrap();
+    let _ttf_context = ::sdl2::ttf::init().unwrap();
 
     // Create the window
     let window = video.window(title, 800, 600)
