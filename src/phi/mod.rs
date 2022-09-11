@@ -8,6 +8,9 @@ pub mod data;
 pub mod gfx;
 
 use sdl2::render::WindowCanvas;
+use self::gfx::Sprite;
+use sdl2::pixels::Color;
+use std::path::Path;
 
 struct_events! {
     keyboard: {
@@ -42,6 +45,15 @@ impl Phi{
         let (w, h) = self.renderer.output_size().unwrap();
         (w as f64, h as f64)
     }
+
+    pub fn ttf_str_sprite(&mut self, text: &str, font_path: &'static str, size: i32, color: Color) -> Option<Sprite> {
+        ::sdl2::ttf::init().unwrap().load_font(Path::new(font_path), size as u16).ok()
+            .and_then(|font| font
+                .render(text).blended(color).ok()
+                .and_then(|surface| self.renderer.create_texture_from_surface(&surface).ok())
+                .map(Sprite::new)
+        )
+    }
 }
 
 /// A `ViewAction` is a way for the currently executed view to
@@ -70,7 +82,7 @@ where
     let video = sdl_context.video().unwrap();
     let mut timer = sdl_context.timer().unwrap();
     let _image_context = ::sdl2::image::init(::sdl2::image::InitFlag::PNG).unwrap();
-    let _ttf_context = ::sdl2::ttf::init().unwrap();
+    // let _ttf_context = ::sdl2::ttf::init().unwrap();
 
     // Create the window
     let window = video.window(title, 800, 600)
