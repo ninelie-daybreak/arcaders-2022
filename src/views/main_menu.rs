@@ -42,7 +42,7 @@ impl MainMenuView {
                 })),
                 Action::new(phi, "Quit", Box::new(|phi| {
                     ViewAction::Quit
-                }))
+                })),
             ],
 
             selected: 0,
@@ -81,14 +81,39 @@ impl View for MainMenuView {
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
         phi.renderer.clear();
 
-        let(win_w, win_h) = phi.output_size();
+        // Definitions for the menu's layout
+        let (win_w, win_h) = phi.output_size();
+        let label_h = 50.0;
+        let border_width = 3.0;
+        let box_w = 360.0;
+        let box_h = self.actions.len() as f64 * label_h;
+        let margin_h = 10.0;
+
+        // Render the border of the colored box which holds the labels
+        phi.renderer.set_draw_color(Color::RGB(70, 15, 70));
+        phi.renderer.fill_rect(Rectangle {
+            w: box_w + border_width * 2.0,
+            h: box_h + border_width * 2.0 + margin_h * 2.0,
+            x: (win_w - box_w) / 2.0 - border_width,
+            y: (win_h - box_h) / 2.0 - margin_h - border_width,
+        }.to_sdl());
+
+        // Render the colored box which holds the labels
+        phi.renderer.set_draw_color(Color::RGB(140, 30, 140));
+        phi.renderer.fill_rect(Rectangle {
+            w: box_w,
+            h: box_h + margin_h * 2.0,
+            x: (win_w - box_w) / 2.0,
+            y: (win_h - box_h) / 2.0 - margin_h,
+        }.to_sdl());
+
 
         for(i, action) in self.actions.iter().enumerate() {
             if self.selected as usize == i {
                 let(w, h) = action.hover_sprite.size();
                 phi.renderer.copy_sprite(&action.hover_sprite, Rectangle {
                     x: (win_w - w) / 2.0,
-                    y: 32.0 + 48.0 * i as f64,
+                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                     w: w,
                     h: h,
                 });
@@ -96,7 +121,7 @@ impl View for MainMenuView {
                 let(w, h) = action.idle_sprite.size();
                 phi.renderer.copy_sprite(&action.idle_sprite, Rectangle {
                     x: (win_w - w) / 2.0,
-                    y: 32.0 + 48.0 * i as f64,
+                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                     w: w,
                     h: h,
                 });
