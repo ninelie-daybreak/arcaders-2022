@@ -1,6 +1,8 @@
 use crate::phi::gfx::Sprite;
 use crate::phi::{data::Rectangle, gfx::CopySprite, Phi, View, ViewAction};
+use crate::views::shared::Background;
 use sdl2::pixels::Color;
+
 
 struct Action {
     /// The function which should be executed if the action is chosen
@@ -29,8 +31,11 @@ impl Action {
 
 pub struct MainMenuView {
     actions: Vec<Action>,
-
     selected: i8,
+
+    bg_back: Background,
+    bg_middle: Background,
+    bg_front: Background,
 }
 
 impl MainMenuView {
@@ -44,8 +49,25 @@ impl MainMenuView {
                     ViewAction::Quit
                 })),
             ],
-
             selected: 0,
+
+            bg_back: Background {
+                pos: 0.0,
+                vel: 20.0,
+                sprite: Sprite::load(&mut phi.renderer, "assets/starBG.png").unwrap(),
+            },
+
+            bg_middle: Background {
+                pos: 0.0,
+                vel: 40.0,
+                sprite: Sprite::load(&mut phi.renderer, "assets/starMG.png").unwrap(),
+            },
+
+            bg_front: Background {
+                pos: 0.0,
+                vel: 80.0,
+                sprite: Sprite::load(&mut phi.renderer, "assets/starFG.png").unwrap(),
+            },
         }
     }
 }
@@ -81,6 +103,11 @@ impl View for MainMenuView {
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
         phi.renderer.clear();
 
+        // Render the backgrounds
+        self.bg_back.render(&mut phi.renderer, elapsed);
+        self.bg_middle.render(&mut phi.renderer, elapsed);
+        self.bg_front.render(&mut phi.renderer, elapsed);
+
         // Definitions for the menu's layout
         let (win_w, win_h) = phi.output_size();
         let label_h = 50.0;
@@ -96,7 +123,7 @@ impl View for MainMenuView {
             h: box_h + border_width * 2.0 + margin_h * 2.0,
             x: (win_w - box_w) / 2.0 - border_width,
             y: (win_h - box_h) / 2.0 - margin_h - border_width,
-        }.to_sdl());
+        }.to_sdl()).unwrap();
 
         // Render the colored box which holds the labels
         phi.renderer.set_draw_color(Color::RGB(140, 30, 140));
@@ -105,7 +132,7 @@ impl View for MainMenuView {
             h: box_h + margin_h * 2.0,
             x: (win_w - box_w) / 2.0,
             y: (win_h - box_h) / 2.0 - margin_h,
-        }.to_sdl());
+        }.to_sdl()).unwrap();
 
 
         for(i, action) in self.actions.iter().enumerate() {
