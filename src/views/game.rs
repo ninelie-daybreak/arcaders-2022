@@ -1,9 +1,14 @@
 use crate::phi::{Phi, View, ViewAction};
 use crate::phi::data::Rectangle;
-use crate::phi::gfx::{Sprite, CopySprite};
+use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite};
 use crate::views::shared::Background;
 use sdl2::pixels::Color;
 
+const ASTEROID_PATH: &'static str = "assets/asteroid.png";
+const ASTEROID_WIDE: usize = 21;
+const ASTEROID_HIGH: usize = 7;
+const ASTEROID_TOTAL: usize = ASTEROID_WIDE * ASTEROID_HIGH - 4;
+const ASTEROID_SIDE: f64 = 96.0;
 
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
@@ -29,6 +34,62 @@ enum ShipFrame {
 }
 
 #[derive(Clone)]
+struct Asteroid {
+    sprite: AnimatedSprite,
+    rect: Rectangle,
+    vel: f64,
+}
+
+impl Asteroid {
+    fn new(phi: &mut Phi) -> Asteroid {
+        Asteroid {
+            sprite: Asteroid::get_sprite(phi, 15.0),
+            rect: Rectangle {
+                w: ASTEROID_SIDE,
+                h: ASTEROID_SIDE,
+                x: 128.0,
+                y: 128.0,
+            },
+            vel: 0.0,
+        }
+    }
+
+    fn get_sprite(phi: &mut Phi, fps: f64) -> AnimatedSprite {
+        let asteroid_spritesheet = Sprite::load(&mut phi.renderer, ASTEROID_PATH).unwrap();
+        let mut asteroid_sprites = Vec::with_capacity(ASTEROID_TOTAL);
+
+        for yth in 0..ASTEROID_HIGH {
+            for xth in 0..ASTEROID_WIDE {
+                //? There are four asteroids missing at the end of the
+                //? spritesheet: we do not want to render those.
+                if ASTEROID_WIDE * yth + xth >= ASTEROID_TOTAL {
+                    break;
+                }
+
+                asteroid_sprites.push(
+                    asteroid_spritesheet.region(Rectangle {
+                        w: ASTEROID_SIDE,
+                        h: ASTEROID_SIDE,
+                        x: ASTEROID_SIDE * xth as f64,
+                        y: ASTEROID_SIDE * yth as f64,
+                    }).unwrap()
+                );
+            }
+        }
+
+        AnimatedSprite::with_fps(asteroid_sprites, fps)
+    }
+
+    fn update(&mut self, _: &mut Phi, dt: f64) {
+        self.sprite.add_time(dt);
+    }
+
+    fn render(&mut self, phi: &mut Phi) {
+        phi.renderer.copy_sprite(&self.sprite, self.rect);
+    }
+}
+
+#[derive(Clone)]
 struct Ship {
     rect: Rectangle,
     sprites: Vec<Sprite>,
@@ -38,6 +99,7 @@ struct Ship {
 #[derive(Clone)]
 pub struct ShipView {
     player: Ship,
+    asteroid: Asteroid,
 
     bg_back: Background,
     bg_middle: Background,
@@ -74,6 +136,8 @@ impl ShipView {
                 sprites: sprites,
                 current: ShipFrame::MidNorm,
             },
+
+            asteroid: Asteroid::new(phi),
 
             bg_back: Background {
                 pos: 0.0,
@@ -155,6 +219,10 @@ impl View for ShipView {
             else if dx < 0.0 && dy > 0.0   { ShipFrame::DownSlow }
             else { unreachable!() };
 
+        // Update the asteroid
+        self.asteroid.update(phi, elapsed);
+
+        
         // Render the scene
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
         phi.renderer.clear();
@@ -174,6 +242,9 @@ impl View for ShipView {
             &self.player.sprites[self.player.current as usize],
             self.player.rect
         );
+
+        // Render the asteroid
+        self.asteroid.render(phi);
 
         // Render the foreground
         self.bg_front.render(&mut phi.renderer, elapsed);
