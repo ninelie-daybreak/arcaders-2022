@@ -9,3 +9,6 @@ edition = "2021"
 version = "0.35"
 default-features = false
 features = ["image", "unsafe_textures", "ttf"]
+
+[dependencies.rand]
+version = "0.8.5"
