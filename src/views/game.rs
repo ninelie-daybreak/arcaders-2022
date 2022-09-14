@@ -42,16 +42,40 @@ struct Asteroid {
 
 impl Asteroid {
     fn new(phi: &mut Phi) -> Asteroid {
-        Asteroid {
-            sprite: Asteroid::get_sprite(phi, 15.0),
-            rect: Rectangle {
-                w: ASTEROID_SIDE,
-                h: ASTEROID_SIDE,
-                x: 128.0,
-                y: 128.0,
-            },
-            vel: 0.0,
-        }
+        let mut asteroid =
+            Asteroid {
+                sprite: Asteroid::get_sprite(phi, 1.0),
+                rect: Rectangle {
+                    w: 0.0,
+                    h: 0.0,
+                    x: 0.0,
+                    y: 0.0,
+                },
+                vel: 0.0,
+            };
+        
+        asteroid.reset(phi);
+        asteroid
+    }
+
+    fn reset(&mut self, phi: &mut Phi) {
+        let (w, h) = phi.output_size();
+
+        // FPS in [10.0, 30.0)
+        //? `random<f64>()` returns a value between 0 and 1.
+        //? `abs()` returns an absolute value
+        self.sprite.set_fps(crate::rand::random::<f64>().abs() * 20.0 + 10.0);
+
+        // rect.y in the screen vertically
+        self.rect = Rectangle {
+            w: ASTEROID_SIDE,
+            h: ASTEROID_SIDE,
+            x: w,
+            y: crate::rand::random::<f64>().abs() * (h - ASTEROID_SIDE),
+        };
+
+        // vel in [50.0, 150.0)
+        self.vel = crate::rand::random::<f64>().abs() * 100.0 + 50.0;
     }
 
     fn get_sprite(phi: &mut Phi, fps: f64) -> AnimatedSprite {
@@ -80,8 +104,13 @@ impl Asteroid {
         AnimatedSprite::with_fps(asteroid_sprites, fps)
     }
 
-    fn update(&mut self, _: &mut Phi, dt: f64) {
+    fn update(&mut self, phi: &mut Phi, dt: f64) {
+        self.rect.x -= dt * self.vel;
         self.sprite.add_time(dt);
+
+        if self.rect.x <= -ASTEROID_SIDE {
+            self.reset(phi);
+        }
     }
 
     fn render(&mut self, phi: &mut Phi) {
