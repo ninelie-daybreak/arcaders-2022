@@ -5,6 +5,12 @@ use std::rc::Rc;
 use sdl2::render::{WindowCanvas, Texture};
 use sdl2::image::LoadTexture;
 
+/// Common interface for rendering a graphical component to some given region
+/// of the window.
+pub trait Renderable {
+    fn render(&self, renderer: &mut WindowCanvas, dest: Rectangle);
+}
+
 #[derive(Clone)]
 pub struct Sprite {
     tex: Rc<RefCell<Texture>>,
@@ -58,18 +64,101 @@ impl Sprite {
     pub fn size(&self) -> (f64, f64) {
         (self.src.w, self.src.h)
     }
+}
 
-    pub fn render(&self, renderer: &mut WindowCanvas, dest: Rectangle) {
+impl Renderable for Sprite {
+    fn render(&self, renderer: &mut WindowCanvas, dest: Rectangle) {
         renderer.copy(&mut self.tex.borrow_mut(), self.src.to_sdl(), dest.to_sdl()).unwrap();
     }
 }
 
-pub trait CopySprite {
-    fn copy_sprite(&mut self, sprite: &Sprite, dest: Rectangle);
+#[derive(Clone)]
+pub struct AnimatedSprite {
+    /// The frames taht will be rendered, in order.
+    sprites: Vec<Sprite>,
+
+    /// The time it takes to get from one frame to the next, in seconds.
+    frame_delay: f64,
+
+    /// The total time that the sprite has been alive, from which the current frame
+    /// frame is derived.
+    current_time: f64,
 }
 
-impl CopySprite for WindowCanvas {
-    fn copy_sprite(&mut self, sprite: &Sprite, dest: Rectangle) {
-        sprite.render(self, dest);
+impl AnimatedSprite {
+    /// Creates a new animated sprite initialized at time 0.
+    pub fn new(sprites: Vec<Sprite>, frame_delay: f64) -> AnimatedSprite {
+        AnimatedSprite {
+            sprites: sprites,
+            frame_delay: frame_delay,
+            current_time: 0.0,
+        }
+    }
+
+    /// Creates a new animated sprite whitch goes to the next frame `fps` times
+    /// every second.
+    pub fn with_fps(sprites: Vec<Sprite>, fps: f64) -> AnimatedSprite {
+        //? Logically, a value of 0FPS might mean "stop changing frames".
+        //? However, there's not really a need for this functionality in this
+        //? game.
+        if fps == 0.0 {
+            panic!("Passed 0 to AnimatedSprite::with_fps");
+        }
+
+        AnimatedSprite::new(sprites, 1.0 / fps)
+    }
+
+    // The number of frames composing the animation.
+    pub fn frames(&self) -> usize {
+        self.sprites.len()
+    }
+
+    /// Set the time it takes to get from one frame to the next, in seconds.
+    /// If the value is negatice, then we "rewind" the animation.
+    pub fn set_frame_delay(&mut self, frame_delay: f64) {
+        self.frame_delay = frame_delay;
+    }
+
+    /// Set the number of frames the animation goes through every second.
+    /// If the value if negative, then we "rewind" the animation.
+    pub fn set_fps(&mut self, fps: f64) {
+        if fps == 0.0 {
+            panic!("Passed 0 to AnimatedSprite::set_fps");
+        }
+
+        self.set_frame_delay(1.0 / fps);
+    }
+
+    /// Adds a certain amount of time, in seconds, to the `current_time` of the
+    /// animated sprite, so that it knows when it must go to the next frame.
+    pub fn add_time(&mut self, dt: f64) {
+        self.current_time += dt;
+
+        // Of we decode tp gp "back in time", this allows us to select the
+        // last frame whenever we reach a negative one.
+        if self.current_time < 0.0 {
+            self.current_time = (self.frames() - 1) as f64 * self.frame_delay;
+        }
+    }
+}
+
+impl Renderable for AnimatedSprite {
+    /// Renders the current frame of the sprite.
+    fn render(&self, renderer: &mut WindowCanvas, dest: Rectangle) {
+        let current_frame = 
+            (self.current_time / self.frame_delay) as usize % self.frames();
+
+        let sprite = &self.sprites[current_frame];
+        sprite.render(renderer, dest);
+    }
+}
+
+pub trait CopySprite<T> {
+    fn copy_sprite(&mut self, sprite: &T, dest: Rectangle);
+}
+
+impl<T: Renderable> CopySprite<T> for WindowCanvas {
+    fn copy_sprite(&mut self, renderable: &T, dest: Rectangle) {
+        renderable.render(self, dest);
     }
 }
