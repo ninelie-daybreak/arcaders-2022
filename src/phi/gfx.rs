@@ -89,7 +89,7 @@ impl AnimatedSprite {
     /// Creates a new animated sprite initialized at time 0.
     pub fn new(sprites: Vec<Sprite>, frame_delay: f64) -> AnimatedSprite {
         AnimatedSprite {
-            sprites: sprites,
+            sprites: Rc::new(sprites).to_vec(),
             frame_delay: frame_delay,
             current_time: 0.0,
         }
