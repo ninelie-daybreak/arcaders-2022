@@ -13,8 +13,15 @@ const ASTEROID_SIDE: f64 = 96.0;
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
 
+//? The velocity shared by all bullets, in pixels per second.
+const BULLET_SPEED: f64 = 240.0;
+
 const SHIP_W: f64 = 43.0;
 const SHIP_H: f64 = 39.0;
+
+//? The size of the rectangle which will represent the bullet.
+const BULLET_W: f64 = 8.0;
+const BULLET_H: f64 = 4.0;
 
 const DEBUG: bool = false;
 
@@ -115,6 +122,36 @@ impl Asteroid {
 
     fn render(&mut self, phi: &mut Phi) {
         phi.renderer.copy_sprite(&self.sprite, self.rect);
+    }
+}
+
+#[derive(Clone, Copy)]
+struct RectBullet {
+    rect: Rectangle,
+}
+
+impl RectBullet {
+    /// Update the bullet.
+    /// If the bullet should be destroyed, e.g. because it has left the screen
+    /// then return `None`.
+    /// Otherwise, return `Some(update_bullet)`
+    fn update(mut self, phi: &mut Phi, dt: f64) -> Option<Self> {
+        let (w, _) = phi.output_size();
+        self.rect.x += BULLET_SPEED * dt;
+
+        // If the bullet has left the screen then delete it.
+        if self.rect.x > w {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    /// Render the bullet to the screen.
+    fn render(self, phi: &mut Phi) {
+        // We will render this kind of bullet in yellow
+        phi.renderer.set_draw_color(Color::RGB(230, 230, 30));
+        phi.renderer.fill_rect(self.rect.to_sdl()).unwrap();
     }
 }
 
