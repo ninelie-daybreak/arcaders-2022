@@ -153,6 +153,11 @@ impl RectBullet {
         phi.renderer.set_draw_color(Color::RGB(230, 230, 30));
         phi.renderer.fill_rect(self.rect.to_sdl()).unwrap();
     }
+
+    /// Return the bullet's bounding box.
+    fn rect(&self) -> Rectangle {
+        self.rect
+    }
 }
 
 #[derive(Clone)]
@@ -160,6 +165,37 @@ struct Ship {
     rect: Rectangle,
     sprites: Vec<Sprite>,
     current: ShipFrame,
+}
+
+impl Ship {
+    fn spawn_bullets(&self) -> Vec<Rectangle> {
+        let cannons_x = self.rect.x + 30.0;
+        let cannons1_y = self.rect.y + 6.0;
+        let cannons2_y = self.rect.y + SHIP_H - 10.0;
+
+        // One bullet at the tip of every cannon
+        //? We could modify the initial position of the bullets by matching on
+        //? `self.current : ShipFrame`, however there is not much point to this
+        //? pedagogy-wise. You can try it out if you want.
+        vec![
+            RectBullet {
+                rect: Rectangle {
+                    x: cannons_x,
+                    y: cannons1_y,
+                    w: BULLET_W,
+                    h: BULLET_H,
+                }
+            },
+            RectBullet {
+                rect: Rectangle {
+                    x: cannons_x,
+                    y: cannons2_y,
+                    w: BULLET_W,
+                    h: BULLET_H,
+                }
+            }
+        ] 
+    }
 }
 
 #[derive(Clone)]
