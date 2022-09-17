@@ -168,7 +168,7 @@ struct Ship {
 }
 
 impl Ship {
-    fn spawn_bullets(&self) -> Vec<Rectangle> {
+    fn spawn_bullets(&self) -> Vec<RectBullet> {
         let cannons_x = self.rect.x + 30.0;
         let cannons1_y = self.rect.y + 6.0;
         let cannons2_y = self.rect.y + SHIP_H - 10.0;
@@ -201,6 +201,7 @@ impl Ship {
 #[derive(Clone)]
 pub struct ShipView {
     player: Ship,
+    bullets: Vec<RectBullet>,
     asteroid: Asteroid,
 
     bg_back: Background,
@@ -238,6 +239,11 @@ impl ShipView {
                 sprites: sprites,
                 current: ShipFrame::MidNorm,
             },
+
+            /// We start with no bullets. Because the size of the vector will
+            /// change drastically throughout the program, there is not much
+            /// point in giving it a capacity.
+            bullets: vec![],
 
             asteroid: Asteroid::new(phi),
 
@@ -320,10 +326,28 @@ impl View for ShipView {
             else if dx > 0.0 && dy > 0.0   { ShipFrame::DownFast }
             else if dx < 0.0 && dy > 0.0   { ShipFrame::DownSlow }
             else { unreachable!() };
-
+        
+        self.bullets = 
+            self.bullets.iter()
+            .filter_map(|bullet| bullet.update(phi, elapsed))
+            .collect();
+        
         // Update the asteroid
         self.asteroid.update(phi, elapsed);
 
+        // Allow the player to shoot after the bullets are updated, so that,
+        // when rendered for the first time, they are drawn wherever they
+        // spawned.
+        //
+        //? In this case, we ensure that the new bullets are drawn at the tips
+        //? of the cannons.
+        //?
+        //? The `Vec::append` method moves the content of `spawn_bullets` at
+        //? the end of `self.bullets`. After this is done, the vector returned
+        //? by `spawn_bullets` will be empty.
+        if phi.events.now.key_space == Some(true) {
+            self.bullets.append(&mut self.player.spawn_bullets());
+        }
         
         // Render the scene
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
@@ -344,6 +368,11 @@ impl View for ShipView {
             &self.player.sprites[self.player.current as usize],
             self.player.rect
         );
+
+        // Render the bullets
+        for bullet in &self.bullets {
+            bullet.render(phi);
+        }
 
         // Render the asteroid
         self.asteroid.render(phi);
