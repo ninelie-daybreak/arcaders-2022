@@ -130,6 +130,17 @@ struct RectBullet {
     rect: Rectangle,
 }
 
+struct SineBullet {
+    //? Notice that the bounding box isn't stored directly. This means that
+    //? we do not keep useless innformation. It also implies that we must compute
+    //? the `sin` function every time we attempt to get the bounding box.
+    pos_x: f64,
+    origin_y: f64,
+    amplitude: f64, 
+    angular_vel: f64,
+    total_time: f64,
+}
+
 trait Bullet: {
     /// Update the bullet.
     /// If the bullet should be destroyed, e.g. because it has left the screen
@@ -183,9 +194,45 @@ impl Bullet for RectBullet {
     }
 }
 
+impl Bullet for SineBullet {
+    fn update(mut self: Box<Self>, phi: &mut Phi, dt: f64) -> Option<Box<dyn Bullet>> {
+        //? We store the total time...
+        self.total_time += dt;
+
+        //? And move at the same speed as regular bullets.
+        self.pos_x += BULLET_SPEED * dt;
+
+        // If the bullet has left the screen, then delete it.
+        let (w, _) = phi.output_size();
+
+        if self.rect().x > w{
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        phi.renderer.set_draw_color(Color::RGB(230, 230, 30));
+        phi.renderer.fill_rect(self.rect().to_sdl()).unwrap();
+    }
+
+    fn rect(&self) -> Rectangle {
+        //? Just the general form of the sine function, minus the initial time.
+        let dy = self.amplitude * f64::sin(self.angular_vel * self.total_time);
+        Rectangle {
+            x: self.pos_x,
+            y: self.origin_y + dy,
+            w: BULLET_W,
+            h: BULLET_H,
+        }
+    }
+}
+
 #[derive(Clone,Copy)]
 enum CannonType {
     RectBullet,
+    SineBullet { amplitude: f64, angular_vel: f64 },
 }
 
 #[derive(Clone)]
@@ -206,24 +253,42 @@ impl Ship {
 
         match self.cannon {
             CannonType::RectBullet => 
-            vec![
-                Box::new(RectBullet {
-                    rect: Rectangle {
-                        x: cannons_x,
-                        y: cannons1_y,
-                        w: BULLET_W,
-                        h: BULLET_H,
-                    }
-                }),
-                Box::new(RectBullet {
-                    rect: Rectangle {
-                        x: cannons_x,
-                        y: cannons2_y,
-                        w: BULLET_W,
-                        h: BULLET_H,
-                    }
-                }),
-            ]
+                vec![
+                    Box::new(RectBullet {
+                        rect: Rectangle {
+                            x: cannons_x,
+                            y: cannons1_y,
+                            w: BULLET_W,
+                            h: BULLET_H,
+                        }
+                    }),
+                    Box::new(RectBullet {
+                        rect: Rectangle {
+                            x: cannons_x,
+                            y: cannons2_y,
+                            w: BULLET_W,
+                            h: BULLET_H,
+                        }
+                    }),
+                ],
+
+            CannonType::SineBullet { amplitude, angular_vel } =>
+                vec![
+                    Box::new(SineBullet {
+                        pos_x: cannons_x,
+                        origin_y: cannons1_y,
+                        amplitude: amplitude,
+                        angular_vel: angular_vel,
+                        total_time: 0.0,
+                    }),
+                    Box::new(SineBullet {
+                        pos_x: cannons_x,
+                        origin_y: cannons2_y,
+                        amplitude: amplitude,
+                        angular_vel: angular_vel,
+                        total_time: 0.0,
+                    }),
+                ]
         }
     }
 }
@@ -311,13 +376,16 @@ impl View for ShipView {
             ))
         }
 
-        // Change the player's cannons
+        // Change the player's cannonsself.player.cannon = CannonType::RectBullet;
         if phi.events.now.key_1 == Some(true) {
             self.player.cannon = CannonType::RectBullet;
         }
 
         if phi.events.now.key_2 == Some(true) {
-            // TODO:
+            self.player.cannon = CannonType::SineBullet { 
+                amplitude: 10.0,
+                angular_vel: 15.0,
+            }
         }
 
         if phi.events.now.key_3 == Some(true) {
