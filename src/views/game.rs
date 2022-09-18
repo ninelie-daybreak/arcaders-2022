@@ -125,17 +125,39 @@ impl Asteroid {
     }
 }
 
-#[derive(Clone, Copy)]
 struct RectBullet {
     rect: Rectangle,
 }
 
-impl RectBullet {
+trait Bullet: {
     /// Update the bullet.
     /// If the bullet should be destroyed, e.g. because it has left the screen
     /// then return `None`.
     /// Otherwise, return `Some(update_bullet)`
-    fn update(mut self, phi: &mut Phi, dt: f64) -> Option<Self> {
+    /// 
+    /// Notice how we use `Box<Self> as the type of `self`. This means: keep
+    /// this data behind a pointer, but `move` the pointer. You should note that
+    /// we are not copying the value: we are only copying the _address_ at
+    /// which the value is stored in memory, which has a negligible cost. We can
+    /// do this because Rust will automatically free the memory once the `Box` that
+    /// contains it is itself destroyed.
+    fn update(self: Box<Self>, phi: &mut Phi, dt: f64) -> Option<Box<dyn Bullet>>;
+
+    /// Render the bullet to the screen.
+    /// Here, we take an immutable reference to the bullet, because we do not
+    /// need to change its value to draw it, This is the same as before.
+    fn render(&self, phi: &mut Phi);
+
+    /// Return the bullet's bounding box.
+    fn rect(&self) -> Rectangle;
+}
+
+impl Bullet for RectBullet {
+    /// Update the bullet.
+    /// If the bullet should be destroyed, e.g. because it has left the screen
+    /// then return `None`.
+    /// Otherwise, return `Some(update_bullet)`
+    fn update(mut self: Box<Self>, phi: &mut Phi, dt: f64) -> Option<Box<dyn Bullet>> {
         let (w, _) = phi.output_size();
         self.rect.x += BULLET_SPEED * dt;
 
@@ -148,7 +170,7 @@ impl RectBullet {
     }
 
     /// Render the bullet to the screen.
-    fn render(self, phi: &mut Phi) {
+    fn render(&self, phi: &mut Phi) {
         // We will render this kind of bullet in yellow
         phi.renderer.set_draw_color(Color::RGB(230, 230, 30));
         phi.renderer.fill_rect(self.rect.to_sdl()).unwrap();
@@ -168,7 +190,7 @@ struct Ship {
 }
 
 impl Ship {
-    fn spawn_bullets(&self) -> Vec<RectBullet> {
+    fn spawn_bullets(&self) -> Vec<Box<dyn Bullet>> {
         let cannons_x = self.rect.x + 30.0;
         let cannons1_y = self.rect.y + 6.0;
         let cannons2_y = self.rect.y + SHIP_H - 10.0;
@@ -178,30 +200,29 @@ impl Ship {
         //? `self.current : ShipFrame`, however there is not much point to this
         //? pedagogy-wise. You can try it out if you want.
         vec![
-            RectBullet {
+            Box::new(RectBullet {
                 rect: Rectangle {
                     x: cannons_x,
                     y: cannons1_y,
                     w: BULLET_W,
                     h: BULLET_H,
                 }
-            },
-            RectBullet {
+            }),
+            Box::new(RectBullet {
                 rect: Rectangle {
                     x: cannons_x,
                     y: cannons2_y,
                     w: BULLET_W,
                     h: BULLET_H,
                 }
-            }
+            }),
         ] 
     }
 }
 
-#[derive(Clone)]
 pub struct ShipView {
     player: Ship,
-    bullets: Vec<RectBullet>,
+    bullets: Vec<Box<dyn Bullet>>,
     asteroid: Asteroid,
 
     bg_back: Background,
@@ -327,8 +348,16 @@ impl View for ShipView {
             else if dx < 0.0 && dy > 0.0   { ShipFrame::DownSlow }
             else { unreachable!() };
         
+        
+        /// Set `self.bullets` to be the empty vector, and put its content inside of 
+        /// `old_bullets`, which we can move without borrow-checker issues.
+        let old_bullets = ::std::mem::replace(&mut self.bullets, vec![]);
+        
+        /// Upon assignment, the old value of `self.bullets`, namely the empty vector,
+        /// will be freed automatically, because its owner no longer refers to it.
+        /// We can then update the bullet quite simply.
         self.bullets = 
-            self.bullets.iter()
+            old_bullets.into_iter()
             .filter_map(|bullet| bullet.update(phi, elapsed))
             .collect();
         
@@ -374,7 +403,7 @@ impl View for ShipView {
             bullet.render(phi);
         }
 
-        // Render the asteroid
+
         self.asteroid.render(phi);
 
         // Render the foreground
