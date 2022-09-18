@@ -2,6 +2,7 @@ use crate::phi::{Phi, View, ViewAction};
 use crate::phi::data::Rectangle;
 use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite};
 use crate::views::shared::Background;
+use crate::views::main_menu::MainMenuView;
 use sdl2::pixels::Color;
 
 const ASTEROID_PATH: &'static str = "assets/asteroid.png";
@@ -182,11 +183,17 @@ impl Bullet for RectBullet {
     }
 }
 
+#[derive(Clone,Copy)]
+enum CannonType {
+    RectBullet,
+}
+
 #[derive(Clone)]
 struct Ship {
     rect: Rectangle,
     sprites: Vec<Sprite>,
     current: ShipFrame,
+    cannon: CannonType,
 }
 
 impl Ship {
@@ -196,27 +203,28 @@ impl Ship {
         let cannons2_y = self.rect.y + SHIP_H - 10.0;
 
         // One bullet at the tip of every cannon
-        //? We could modify the initial position of the bullets by matching on
-        //? `self.current : ShipFrame`, however there is not much point to this
-        //? pedagogy-wise. You can try it out if you want.
-        vec![
-            Box::new(RectBullet {
-                rect: Rectangle {
-                    x: cannons_x,
-                    y: cannons1_y,
-                    w: BULLET_W,
-                    h: BULLET_H,
-                }
-            }),
-            Box::new(RectBullet {
-                rect: Rectangle {
-                    x: cannons_x,
-                    y: cannons2_y,
-                    w: BULLET_W,
-                    h: BULLET_H,
-                }
-            }),
-        ] 
+
+        match self.cannon {
+            CannonType::RectBullet => 
+            vec![
+                Box::new(RectBullet {
+                    rect: Rectangle {
+                        x: cannons_x,
+                        y: cannons1_y,
+                        w: BULLET_W,
+                        h: BULLET_H,
+                    }
+                }),
+                Box::new(RectBullet {
+                    rect: Rectangle {
+                        x: cannons_x,
+                        y: cannons2_y,
+                        w: BULLET_W,
+                        h: BULLET_H,
+                    }
+                }),
+            ]
+        }
     }
 }
 
@@ -259,6 +267,8 @@ impl ShipView {
                 },
                 sprites: sprites,
                 current: ShipFrame::MidNorm,
+                /// Let `RectBullet` be the default kind of bullet.
+                cannon: CannonType::RectBullet,
             },
 
             /// We start with no bullets. Because the size of the vector will
@@ -291,8 +301,27 @@ impl ShipView {
 
 impl View for ShipView {
     fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
-        if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
+        if phi.events.now.quit {
             return ViewAction::Quit;
+        }
+
+        if phi.events.now.key_escape == Some(true) {
+            return ViewAction::ChangeView(Box::new(
+                crate::views::main_menu::MainMenuView::new(phi)
+            ))
+        }
+
+        // Change the player's cannons
+        if phi.events.now.key_1 == Some(true) {
+            self.player.cannon = CannonType::RectBullet;
+        }
+
+        if phi.events.now.key_2 == Some(true) {
+            // TODO:
+        }
+
+        if phi.events.now.key_3 == Some(true) {
+            // TODO:
         }
 
         // Moving logic
@@ -349,13 +378,13 @@ impl View for ShipView {
             else { unreachable!() };
         
         
-        /// Set `self.bullets` to be the empty vector, and put its content inside of 
-        /// `old_bullets`, which we can move without borrow-checker issues.
+        // Set `self.bullets` to be the empty vector, and put its content inside of 
+        // `old_bullets`, which we can move without borrow-checker issues.
         let old_bullets = ::std::mem::replace(&mut self.bullets, vec![]);
         
-        /// Upon assignment, the old value of `self.bullets`, namely the empty vector,
-        /// will be freed automatically, because its owner no longer refers to it.
-        /// We can then update the bullet quite simply.
+        // Upon assignment, the old value of `self.bullets`, namely the empty vector,
+        // will be freed automatically, because its owner no longer refers to it.
+        // We can then update the bullet quite simply.
         self.bullets = 
             old_bullets.into_iter()
             .filter_map(|bullet| bullet.update(phi, elapsed))
