@@ -141,6 +141,16 @@ struct SineBullet {
     total_time: f64,
 }
 
+/// Bullet which follows a vertical trajectory given by:
+///     a * ((t / b)^3 - (t / b)^2)
+struct DevergentBullet {
+    pos_x : f64,
+    origin_y : f64,
+    a: f64,
+    b: f64,
+    total_time: f64,
+}
+
 trait Bullet: {
     /// Update the bullet.
     /// If the bullet should be destroyed, e.g. because it has left the screen
@@ -229,10 +239,47 @@ impl Bullet for SineBullet {
     }
 }
 
+impl Bullet for DevergentBullet {
+    fn update(mut self: Box<Self>, phi: &mut Phi, dt: f64) -> Option<Box<dyn Bullet>>{
+        self.total_time += dt;
+        self.pos_x += BULLET_SPEED * dt;
+
+        // If the bullet has left the screen, then delete it.
+        let (w, h) = phi.output_size();
+        let rect = self.rect();
+
+        if rect.x > w || rect.x < 0.0 ||
+           rect.y > h || rect.y < 0.0 {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        // We will render this kind of bullet in yellow.
+        phi.renderer.set_draw_color(Color::RGB(230, 230, 30));
+        phi.renderer.fill_rect(self.rect().to_sdl()).unwrap();
+    }
+
+    fn rect(&self) -> Rectangle {
+        let dy = self.a * 
+                            ((self.total_time / self.b).powi(3) - 
+                             (self.total_time / self.b).powi(2));
+        Rectangle {
+            x: self.pos_x,
+            y: self.origin_y + dy,
+            w: BULLET_W,
+            h: BULLET_H,
+        }
+    }
+}
+
 #[derive(Clone,Copy)]
 enum CannonType {
     RectBullet,
     SineBullet { amplitude: f64, angular_vel: f64 },
+    DevergentBullet { a: f64, b: f64},
 }
 
 #[derive(Clone)]
@@ -288,6 +335,27 @@ impl Ship {
                         angular_vel: angular_vel,
                         total_time: 0.0,
                     }),
+                ],
+            
+            CannonType::DevergentBullet { a, b } => 
+                vec![
+                    // If a,b > 0, eventually goes upwards
+                    Box::new(DevergentBullet {
+                        pos_x: cannons_x,
+                        origin_y: cannons1_y,
+                        a: -a,
+                        b: b,
+                        total_time: 0.0,
+                    }),
+
+                    // If a,b > 0, eventually goes downwards
+                    Box::new(DevergentBullet{
+                        pos_x: cannons_x,
+                        origin_y: cannons2_y,
+                        a: a,
+                        b: b,
+                        total_time: 0.0,
+                    })
                 ]
         }
     }
@@ -389,7 +457,10 @@ impl View for ShipView {
         }
 
         if phi.events.now.key_3 == Some(true) {
-            // TODO:
+            self.player.cannon = CannonType::DevergentBullet {
+                a: 100.0,
+                b: 1.2,
+            }
         }
 
         // Moving logic
