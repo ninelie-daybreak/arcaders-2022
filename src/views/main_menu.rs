@@ -43,7 +43,7 @@ impl MainMenuView {
         MainMenuView {
             actions: vec![
                 Action::new(phi, "New Game", Box::new(|phi| {
-                    ViewAction::ChangeView(Box::new(crate::views::game::ShipView::new(phi)))
+                    ViewAction::ChangeView(Box::new(crate::views::game::GameView::new(phi)))
                 })),
                 Action::new(phi, "Quit", Box::new(|phi| {
                     ViewAction::Quit

@@ -361,7 +361,7 @@ impl Ship {
     }
 }
 
-pub struct ShipView {
+pub struct GameView {
     player: Ship,
     bullets: Vec<Box<dyn Bullet>>,
     asteroid: Asteroid,
@@ -371,8 +371,8 @@ pub struct ShipView {
     bg_front: Background,
 }
 
-impl ShipView {
-    pub fn new(phi: &mut Phi) -> ShipView {
+impl GameView {
+    pub fn new(phi: &mut Phi) -> GameView {
         let spritesheet = Sprite::load(&mut phi.renderer, "assets/spaceship.png").unwrap();
         
         //? When we know in advance how many elements the `Vec` we contain, we 
@@ -390,7 +390,7 @@ impl ShipView {
             }
         }
 
-        ShipView {
+        GameView {
             player: Ship { 
                 rect: Rectangle {
                     x: 64.0,
@@ -432,7 +432,7 @@ impl ShipView {
     }
 }
 
-impl View for ShipView {
+impl View for GameView {
     fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit {
             return ViewAction::Quit;
