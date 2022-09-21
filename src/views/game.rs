@@ -49,23 +49,6 @@ struct Asteroid {
 }
 
 impl Asteroid {
-    fn new(phi: &mut Phi) -> Asteroid {
-        let mut asteroid =
-            Asteroid {
-                sprite: Asteroid::get_sprite(phi, 1.0),
-                rect: Rectangle {
-                    w: 0.0,
-                    h: 0.0,
-                    x: 0.0,
-                    y: 0.0,
-                },
-                vel: 0.0,
-            };
-        
-        asteroid.reset(phi);
-        asteroid
-    }
-
     fn factory(phi: &mut Phi) -> AsteroidFactory {
        // Read the asteroid's image from the filesystem and construct an
        // animated sprite out of it.
@@ -94,55 +77,8 @@ impl Asteroid {
        AsteroidFactory {
            sprite: AnimatedSprite::with_fps(asteroid_sprites, 1.0),
        }
-
-
     }
 
-    fn reset(&mut self, phi: &mut Phi) {
-        let (w, h) = phi.output_size();
-
-        // FPS in [10.0, 30.0)
-        //? `random<f64>()` returns a value between 0 and 1.
-        //? `abs()` returns an absolute value
-        self.sprite.set_fps(crate::rand::random::<f64>().abs() * 20.0 + 10.0);
-
-        // rect.y in the screen vertically
-        self.rect = Rectangle {
-            w: ASTEROID_SIDE,
-            h: ASTEROID_SIDE,
-            x: w,
-            y: crate::rand::random::<f64>().abs() * (h - ASTEROID_SIDE),
-        };
-
-        // vel in [50.0, 150.0)
-        self.vel = crate::rand::random::<f64>().abs() * 100.0 + 50.0;
-    }
-
-    fn get_sprite(phi: &mut Phi, fps: f64) -> AnimatedSprite {
-        let asteroid_spritesheet = Sprite::load(&mut phi.renderer, ASTEROID_PATH).unwrap();
-        let mut asteroid_sprites = Vec::with_capacity(ASTEROID_TOTAL);
-
-        for yth in 0..ASTEROID_HIGH {
-            for xth in 0..ASTEROID_WIDE {
-                //? There are four asteroids missing at the end of the
-                //? spritesheet: we do not want to render those.
-                if ASTEROID_WIDE * yth + xth >= ASTEROID_TOTAL {
-                    break;
-                }
-
-                asteroid_sprites.push(
-                    asteroid_spritesheet.region(Rectangle {
-                        w: ASTEROID_SIDE,
-                        h: ASTEROID_SIDE,
-                        x: ASTEROID_SIDE * xth as f64,
-                        y: ASTEROID_SIDE * yth as f64,
-                    }).unwrap()
-                );
-            }
-        }
-
-        AnimatedSprite::with_fps(asteroid_sprites, fps)
-    }
 
     fn update(mut self, dt: f64) -> Option<Asteroid>{
         self.rect.x -= dt * self.vel;
