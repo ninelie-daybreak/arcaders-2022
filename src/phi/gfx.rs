@@ -74,8 +74,8 @@ impl Renderable for Sprite {
 
 #[derive(Clone)]
 pub struct AnimatedSprite {
-    /// The frames taht will be rendered, in order.
-    sprites: Vec<Sprite>,
+    /// The frames that will be rendered, in order.
+    sprites: Rc<Vec<Sprite>>,
 
     /// The time it takes to get from one frame to the next, in seconds.
     frame_delay: f64,
@@ -89,7 +89,7 @@ impl AnimatedSprite {
     /// Creates a new animated sprite initialized at time 0.
     pub fn new(sprites: Vec<Sprite>, frame_delay: f64) -> AnimatedSprite {
         AnimatedSprite {
-            sprites: Rc::new(sprites).to_vec(),
+            sprites: Rc::new(sprites),
             frame_delay: frame_delay,
             current_time: 0.0,
         }
