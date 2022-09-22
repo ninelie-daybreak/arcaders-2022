@@ -1,5 +1,5 @@
 use crate::phi::{Phi, View, ViewAction};
-use crate::phi::data::Rectangle;
+use crate::phi::data::{Rectangle, MaybeAlive};
 use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite};
 use crate::views::shared::Background;
 use crate::views::main_menu::MainMenuView;
@@ -547,19 +547,75 @@ impl View for GameView {
             .filter_map(|asteroid| asteroid.update(elapsed))
             .collect();
 
+
+        // Collision detection
+
+        //? We keep track of whether or not the player is alive.
+        let mut player_alive = true;
+
+        //? First, go through the bullets and wrap them in a `MaybeAlive`, so that
+        //? we can keep track of which got into a collision and which did not
+        let mut transition_bullets: Vec<_> = 
+            ::std::mem::replace(&mut self.bullets, vec![])
+            .into_iter()
+            .map(|bullet| MaybeAlive { alive: true, value: bullet })
+            .collect();
+
+        self.asteroids = 
+            ::std::mem::replace(&mut self.asteroids, vec![])
+            .into_iter()
+            .filter_map(|asteroid| {
+                // By default, the asteroid has not been in a collision.
+                let mut asteroid_alive = true;
+
+                for bullet in &mut transition_bullets {
+                    //? Notice that we refer to the bullet as `bullet.value`
+                    //? because it has been wrapped in `MaybeAlive`.
+                    if asteroid.rect().overlaps(bullet.value.rect()) {
+                        asteroid_alive = false;
+                        //? We go through every bullet and `kill` those that collide
+                        //? with the asteroid. We do this for every asteroid.
+                        bullet.alive = false;
+                    }
+                }
+
+                //? The player's ship is destroyed if it is hit by an asteroid.
+                //? In which case, the asteroid is also destroyed.
+                if asteroid.rect().overlaps(self.player.rect) {
+                    asteroid_alive = false;
+                    player_alive = false;
+                }
+
+                //? Then, we use the magic of `filter_map` to keep only the asteroids
+                //? that didn't explode.
+                if asteroid_alive {
+                    Some(asteroid)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+
+        //? Finally, we use once again the magic of `filter_map` to keep only
+        //? the bullets that are still alive.
+        self.bullets = transition_bullets.into_iter()
+            .filter_map(MaybeAlive::as_option)
+            .collect();
+        
+        // TODO:
+        // For the moment, we won't do anything about the player dying. This will be
+        // the subject of a future episode.
+        if !player_alive {
+            println!("The player's ship has been destroyed.");
+        }
+        
         // Allow the player to shoot after the bullets are updated, so that,
         // when rendered for the first time, they are drawn wherever they
         // spawned.
-        //
-        //? In this case, we ensure that the new bullets are drawn at the tips
-        //? of the cannons.
-        //?
-        //? The `Vec::append` method moves the content of `spawn_bullets` at
-        //? the end of `self.bullets`. After this is done, the vector returned
-        //? by `spawn_bullets` will be empty.
         if phi.events.now.key_space == Some(true) {
             self.bullets.append(&mut self.player.spawn_bullets());
-        };
+        }
 
         if ::rand::random::<usize>() % 100 == 0 {
             self.asteroids.push(self.asteroid_factory.random(phi));
