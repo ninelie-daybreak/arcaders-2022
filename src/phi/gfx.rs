@@ -85,6 +85,15 @@ pub struct AnimatedSprite {
     current_time: f64,
 }
 
+pub struct AnimatedSpriteDescr<'a> {
+    pub image_path: &'a str,
+    pub total_frames: usize,
+    pub frames_high: usize,
+    pub frames_wide: usize,
+    pub frame_w: f64,
+    pub frame_h: f64,
+}
+
 impl AnimatedSprite {
     /// Creates a new animated sprite initialized at time 0.
     pub fn new(sprites: Vec<Sprite>, frame_delay: f64) -> AnimatedSprite {
@@ -139,6 +148,32 @@ impl AnimatedSprite {
         if self.current_time < 0.0 {
             self.current_time = (self.frames() - 1) as f64 * self.frame_delay;
         }
+    }
+
+    pub fn load_frames(phi: &mut Phi, descr: AnimatedSpriteDescr) -> Vec<Sprite> {
+        // Read the asteroid's iamge from the filesystem and construct an 
+        // animated sprite out of it.
+
+        let spritesheet = Sprite::load(&mut phi.renderer, descr.image_path).unwrap();
+        let mut frames = Vec::with_capacity(descr.total_frames);
+
+        for yth in 0..descr.frames_high {
+            for xth in 0.. descr.frames_wide {
+                if descr.frames_wide * yth + xth >= descr.total_frames {
+                    break;
+                }
+
+                frames.push(
+                    spritesheet.region(Rectangle {
+                        w: descr.frame_w,
+                        h: descr.frame_h,
+                        x: descr.frame_w * xth as f64,
+                        y: descr.frame_h * yth as f64,
+                    }).unwrap());
+            }
+        }
+
+        frames
     }
 }
 
