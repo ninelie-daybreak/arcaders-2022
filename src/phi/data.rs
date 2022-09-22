@@ -59,6 +59,33 @@ impl Rectangle {
         self.y < other.y + other.h &&
         self.y + self.h > other.y
     }
+
+    /// Generate a rectangle with the provided size, with its top-left corner
+    /// at (0, 0).
+    pub fn with_size(w: f64, h: f64) -> Rectangle {
+        Rectangle {
+            x: 0.0,
+            y: 0.0,
+            w: w,
+            h: h,
+        }
+    }
+
+    /// Centers
+    pub fn center_at(self, center: (f64, f64)) -> Rectangle {
+        Rectangle {
+            x: center.0 - self.w / 2.0,
+            y: center.1 - self.h / 2.0,
+            ..self
+        }
+    }
+
+    /// Return the center of the rectangle.
+    pub fn center(self) -> (f64, f64) {
+        let x = self.x + self.w / 2.0;
+        let y = self.y + self.h / 2.0;
+        (x, y)
+    }
 }
 
 pub struct MaybeAlive<T> {

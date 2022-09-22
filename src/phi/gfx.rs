@@ -1,4 +1,5 @@
 use crate::phi::data::Rectangle;
+use crate::phi::Phi;
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
