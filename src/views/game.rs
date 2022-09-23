@@ -23,13 +23,14 @@ const EXPLOSION_DURATION: f64 = 1.0 / EXPLOSION_FPS * EXPLOSIONS_TOTAL as f64;
 
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
+const PLAYER_PATH: &'static str = "assets/spaceship.png";
 
 //? The velocity shared by all bullets, in pixels per second.
 const BULLET_SPEED: f64 = 240.0;
 
 // Constants about the ship
-const SHIP_W: f64 = 43.0;
-const SHIP_H: f64 = 39.0;
+const PLAYER_W: f64 = 43.0;
+const PLAYER_H: f64 = 39.0;
 
 //? The size of the rectangle which will represent the bullet.
 const BULLET_W: f64 = 8.0;
@@ -40,7 +41,7 @@ const DEBUG: bool = false;
 /// The different states our ship might be in. In the image, they're ordered
 /// from left to right, then top to bottom.
 #[derive(Clone, Copy)]
-enum ShipFrame {
+enum PlayerFrame {
     UpNorm   = 0,
     UpFast   = 1,
     UpSlow   = 2,
@@ -346,18 +347,136 @@ enum CannonType {
 }
 
 #[derive(Clone)]
-struct Ship {
+struct Player {
     rect: Rectangle,
     sprites: Vec<Sprite>,
-    current: ShipFrame,
+    current: PlayerFrame,
     cannon: CannonType,
 }
 
-impl Ship {
-    fn spawn_bullets(&self) -> Vec<Box<dyn Bullet>> {
+impl Player {
+    pub fn new(phi: &mut Phi) -> Player {
+        // Get the spaceship's sprites.
+        let spritesheet = Sprite::load(&mut phi.renderer, PLAYER_PATH).unwrap();
+        let mut sprites = Vec::with_capacity(9);
+
+        for y in 0..3 {
+            for x in 0..3 {
+                sprites.push(spritesheet.region(Rectangle {
+                    w: PLAYER_W,
+                    h: PLAYER_H,
+                    x: PLAYER_W * x as f64,
+                    y: PLAYER_H * y as f64,
+                }).unwrap());
+            }
+        }
+
+        Player {
+            // Spawn the player at the center of the screen, vertically.
+            rect: Rectangle {
+                x: 64.0,
+                y: (phi.output_size().1 - PLAYER_H) / 2.0,
+                w: PLAYER_W,
+                h: PLAYER_H,
+            },
+            sprites: sprites,
+            current: PlayerFrame::MidNorm,
+            cannon: CannonType::RectBullet,
+        }
+    }
+
+    pub fn update(&mut self, phi: &mut Phi, elapsed: f64) {
+        // Change the player's cannons
+        if phi.events.now.key_1 == Some(true) {
+            self.cannon = CannonType::RectBullet;
+        }
+
+        if phi.events.now.key_2 == Some(true) {
+            self.cannon = CannonType::SineBullet { 
+                amplitude: 10.0,
+                angular_vel: 15.0,
+            }
+        }
+
+        if phi.events.now.key_3 == Some(true) {
+            self.cannon = CannonType::DevergentBullet {
+                a: 100.0,
+                b: 1.2,
+            }
+        }
+
+        // Moving logic
+        let diagonal = 
+            (phi.events.key_up ^ phi.events.key_down) &&
+            (phi.events.key_left ^ phi.events.key_right);
+
+        let moved = 
+            if diagonal { 1.0 / 2.0f64.sqrt()}
+            else { 1.0 } * PLAYER_SPEED * elapsed;
+        
+        let dx = match (phi.events.key_left, phi.events.key_right) {
+            (true, true) | (false, false) => 0.0,
+            (true, false) => -moved,
+            (false, true) => moved,
+        };
+
+        let dy = match (phi.events.key_up, phi.events.key_down) {
+            (true, true) | (false, false) => 0.0,
+            (true, false) => -moved,
+            (false, true) => moved,
+        };
+
+        self.rect.x += dx;
+        self.rect.y += dy;
+
+        // The movable region spans the entire height of the window and 70% of its
+        // width. This way, the player cannot get to the far right of the screen, where
+        // we will spawn the asnewteroids, and get immediately eliminated.
+        //
+        // We restrain the width because most screens are wider than they are high.
+        let movable_region = Rectangle { 
+            x: 0.0,
+            y: 0.0,
+            w: phi.output_size().0 * 0.70,
+            h: phi.output_size().1,
+        };
+
+        // If the player cannot fit in the screen, then there is a problem and
+        // the game should be promptly aborted.
+        self.rect = self.rect.move_inside(movable_region).unwrap();
+
+        // Select the appropriate sprite of the ship to show.
+        self.current = 
+            if dx == 0.0 && dy < 0.0       { PlayerFrame::UpNorm }
+            else if dx > 0.0 && dy < 0.0   { PlayerFrame::UpFast }
+            else if dx < 0.0 && dy < 0.0   { PlayerFrame::UpSlow }
+            else if dx == 0.0 && dy == 0.0 { PlayerFrame::MidNorm }
+            else if dx > 0.0 && dy == 0.0  { PlayerFrame::MidFast }
+            else if dx < 0.0 && dy == 0.0  { PlayerFrame::MidSlow }
+            else if dx == 0.0 && dy > 0.0  { PlayerFrame::DownNorm }
+            else if dx > 0.0 && dy > 0.0   { PlayerFrame::DownFast }
+            else if dx < 0.0 && dy > 0.0   { PlayerFrame::DownSlow }
+            else { unreachable!() };
+    }
+
+    pub fn render(&self, phi: &mut Phi) {
+        // Render the bounding box(for debugging purposes)
+        if DEBUG {
+            phi.renderer.set_draw_color(Color::RGB(200, 200, 50));
+            phi.renderer.fill_rect(self.rect.to_sdl()).unwrap();
+        }
+
+        // Render the ship's current sprite.
+        phi.renderer.copy_sprite (
+            &self.sprites[self.current as usize],
+            self.rect
+        );
+    }
+
+    pub fn spawn_bullets(&self) -> Vec<Box<dyn Bullet>> {
         let cannons_x = self.rect.x + 30.0;
         let cannons1_y = self.rect.y + 6.0;
-        let cannons2_y = self.rect.y + SHIP_H - 10.0;
+        let cannons2_y = self.rect.y + PLAYER_H - 10.0;
 
         // One bullet at the tip of every cannon
 
@@ -425,7 +544,7 @@ impl Ship {
 }
 
 pub struct GameView {
-    player: Ship,
+    player: Player,
     bullets: Vec<Box<dyn Bullet>>,
     asteroids: Vec<Asteroid>,
     asteroid_factory: AsteroidFactory,
@@ -439,37 +558,8 @@ pub struct GameView {
 
 impl GameView {
     pub fn new(phi: &mut Phi) -> GameView {
-        let spritesheet = Sprite::load(&mut phi.renderer, "assets/spaceship.png").unwrap();
-        
-        //? When we know in advance how many elements the `Vec` we contain, we 
-        //? can allocate the good amount of data up-front.
-        let mut sprites = Vec::with_capacity(9);
-
-        for y in 0..3 {
-            for x in 0..3 {
-                sprites.push(spritesheet.region(Rectangle {
-                    w: SHIP_W,
-                    h: SHIP_H,
-                    x: SHIP_W * x as f64,
-                    y: SHIP_H * y as f64,
-                }).unwrap());
-            }
-        }
-
         GameView {
-            player: Ship { 
-                rect: Rectangle {
-                    x: 64.0,
-                    y: 64.0,
-                    w: SHIP_W,
-                    h: SHIP_H,
-                },
-                sprites: sprites,
-                current: ShipFrame::MidNorm,
-                /// Let `RectBullet` be the default kind of bullet.
-                cannon: CannonType::RectBullet,
-            },
-
+            player: Player::new(phi),
             /// We start with no bullets. Because the size of the vector will
             /// change drastically throughout the program, there is not much
             /// point in giving it a capacity.
@@ -512,78 +602,7 @@ impl View for GameView {
             ))
         }
 
-        // Change the player's cannonsself.player.cannon = CannonType::RectBullet;
-        if phi.events.now.key_1 == Some(true) {
-            self.player.cannon = CannonType::RectBullet;
-        }
-
-        if phi.events.now.key_2 == Some(true) {
-            self.player.cannon = CannonType::SineBullet { 
-                amplitude: 10.0,
-                angular_vel: 15.0,
-            }
-        }
-
-        if phi.events.now.key_3 == Some(true) {
-            self.player.cannon = CannonType::DevergentBullet {
-                a: 100.0,
-                b: 1.2,
-            }
-        }
-
-        // Moving logic
-        let diagonal = 
-            (phi.events.key_up ^ phi.events.key_down) &&
-            (phi.events.key_left ^ phi.events.key_right);
-
-        let moved = 
-            if diagonal { 1.0 / 2.0f64.sqrt()}
-            else { 1.0 } * PLAYER_SPEED * elapsed;
-        
-        let dx = match (phi.events.key_left, phi.events.key_right) {
-            (true, true) | (false, false) => 0.0,
-            (true, false) => -moved,
-            (false, true) => moved,
-        };
-
-        let dy = match (phi.events.key_up, phi.events.key_down) {
-            (true, true) | (false, false) => 0.0,
-            (true, false) => -moved,
-            (false, true) => moved,
-        };
-
-        self.player.rect.x += dx;
-        self.player.rect.y += dy;
-
-        // The movable region spans the entire height of the window and 70% of its
-        // width. This way, the player cannot get to the far right of the screen, where
-        // we will spawn the asnewteroids, and get immediately eliminated.
-        //
-        // We restrain the width because most screens are wider than they are high.
-        let movable_region = Rectangle { 
-            x: 0.0,
-            y: 0.0,
-            w: phi.output_size().0 * 0.70,
-            h: phi.output_size().1,
-        };
-
-        // If the player cannot fit in the screen, then there is a problem and
-        // the game should be promptly aborted.
-        self.player.rect = self.player.rect.move_inside(movable_region).unwrap();
-
-        // Select the appropriate sprite of the ship to show.
-        self.player.current = 
-            if dx == 0.0 && dy < 0.0       { ShipFrame::UpNorm }
-            else if dx > 0.0 && dy < 0.0   { ShipFrame::UpFast }
-            else if dx < 0.0 && dy < 0.0   { ShipFrame::UpSlow }
-            else if dx == 0.0 && dy == 0.0 { ShipFrame::MidNorm }
-            else if dx > 0.0 && dy == 0.0  { ShipFrame::MidFast }
-            else if dx < 0.0 && dy == 0.0  { ShipFrame::MidSlow }
-            else if dx == 0.0 && dy > 0.0  { ShipFrame::DownNorm }
-            else if dx > 0.0 && dy > 0.0   { ShipFrame::DownFast }
-            else if dx < 0.0 && dy > 0.0   { ShipFrame::DownSlow }
-            else { unreachable!() };
-        
+        self.player.update(phi, elapsed);
         
         // Set `self.bullets` to be the empty vector, and put its content inside of 
         // `old_bullets`, which we can move without borrow-checker issues.
@@ -670,7 +689,6 @@ impl View for GameView {
             .filter_map(MaybeAlive::as_option)
             .collect();
         
-        // TODO:
         // For the moment, we won't do anything about the player dying. This will be
         // the subject of a future episode.
         if !player_alive {
@@ -696,17 +714,8 @@ impl View for GameView {
         self.bg_back.render(&mut phi.renderer, elapsed);
         self.bg_middle.render(&mut phi.renderer, elapsed);
 
-        // Render the bounding box(for debugging purposes)
-        if DEBUG {
-            phi.renderer.set_draw_color(Color::RGB(200, 200, 50));
-            phi.renderer.fill_rect(self.player.rect.to_sdl()).unwrap();
-        }
-
-        // Render the ship
-        phi.renderer.copy_sprite(
-            &self.player.sprites[self.player.current as usize],
-            self.player.rect
-        );
+        // Render the entities
+        self.player.render(phi);
 
         // Render the bullets
         for bullet in &self.bullets {
