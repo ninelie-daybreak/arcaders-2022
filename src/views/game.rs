@@ -1,15 +1,25 @@
 use crate::phi::{Phi, View, ViewAction};
 use crate::phi::data::{Rectangle, MaybeAlive};
-use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite};
+use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite, AnimatedSpriteDescr};
 use crate::views::shared::Background;
 use crate::views::main_menu::MainMenuView;
 use sdl2::pixels::Color;
 
+// Constants about asteroid
 const ASTEROID_PATH: &'static str = "assets/asteroid.png";
 const ASTEROID_WIDE: usize = 21;
 const ASTEROID_HIGH: usize = 7;
 const ASTEROID_TOTAL: usize = ASTEROID_WIDE * ASTEROID_HIGH - 4;
 const ASTEROID_SIDE: f64 = 96.0;
+
+// Constants about the explosion
+const EXPLOSION_PATH: &'static str = "assets/explosion.png";
+const EXPLOSIONS_WIDE: usize = 5;
+const EXPLOSIONS_HIGH: usize = 4;
+const EXPLOSIONS_TOTAL: usize = 17;
+const EXPLOSION_SIDE: f64 = 96.0;
+const EXPLOSION_FPS: f64 = 16.0;
+const EXPLOSION_DURATION: f64 = 1.0 / EXPLOSION_FPS * EXPLOSIONS_TOTAL as f64;
 
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
@@ -17,6 +27,7 @@ const PLAYER_SPEED:f64 = 180.0;
 //? The velocity shared by all bullets, in pixels per second.
 const BULLET_SPEED: f64 = 240.0;
 
+// Constants about the ship
 const SHIP_W: f64 = 43.0;
 const SHIP_H: f64 = 39.0;
 
@@ -50,35 +61,18 @@ struct Asteroid {
 
 impl Asteroid {
     fn factory(phi: &mut Phi) -> AsteroidFactory {
-       // Read the asteroid's image from the filesystem and construct an
-       // animated sprite out of it.
-
-       let asteroid_spritesheet = Sprite::load(&mut phi.renderer, ASTEROID_PATH).unwrap();
-       let mut asteroid_sprites = Vec::with_capacity(ASTEROID_TOTAL);
-
-       for yth in 0..ASTEROID_HIGH {
-           for xth in 0..ASTEROID_WIDE {
-               if ASTEROID_WIDE * yth + xth >= ASTEROID_TOTAL {
-                   break;
-               }
-
-               asteroid_sprites.push(
-                   asteroid_spritesheet.region(Rectangle {
-                       x: ASTEROID_SIDE * xth as f64,
-                       y: ASTEROID_SIDE * yth as f64,
-                       w: ASTEROID_SIDE,
-                       h: ASTEROID_SIDE, 
-                    }).unwrap()
-               );
-           }
-       }
-
-       // Return the data required to build an asteroid
-       AsteroidFactory {
-           sprite: AnimatedSprite::with_fps(asteroid_sprites, 1.0),
-       }
+        AsteroidFactory {
+            sprite: AnimatedSprite::with_fps(
+                AnimatedSprite::load_frames(phi, AnimatedSpriteDescr {
+                    image_path: ASTEROID_PATH,
+                    total_frames: ASTEROID_TOTAL,
+                    frames_high: ASTEROID_HIGH,
+                    frames_wide: ASTEROID_WIDE,
+                    frame_w: ASTEROID_SIDE,
+                    frame_h: ASTEROID_SIDE,
+                }), 1.0),
+        }
     }
-
 
     fn update(mut self, dt: f64) -> Option<Asteroid>{
         self.rect.x -= dt * self.vel;
@@ -130,6 +124,67 @@ impl AsteroidFactory {
                 y: ::rand::random::<f64>().abs() * (h - ASTEROID_SIDE),
             },
             vel: ::rand::random::<f64>().abs() * 100.0 + 50.0,
+        }
+    }
+}
+
+struct Explosion {
+    sprite: AnimatedSprite,
+    rect: Rectangle,
+
+    // Keep how long its been arived, so that we destroy the explosion once
+    // its animation is finished.
+    alive_since: f64,
+}
+
+impl Explosion {
+    fn factory(phi: &mut Phi) -> ExplosionFactory {
+        ExplosionFactory {
+            sprite: AnimatedSprite::with_fps(
+                AnimatedSprite::load_frames(phi, AnimatedSpriteDescr {
+                    image_path: EXPLOSION_PATH,
+                    total_frames: EXPLOSIONS_TOTAL,
+                    frames_high: EXPLOSIONS_HIGH,
+                    frames_wide: EXPLOSIONS_WIDE,
+                    frame_w: EXPLOSION_SIDE,
+                    frame_h: EXPLOSION_SIDE,
+                }), EXPLOSION_FPS),
+        }
+    }
+
+    fn update(mut self, dt: f64) -> Option<Explosion> {
+        self.alive_since = dt;
+        self.sprite.add_time(dt);
+
+        if self.alive_since >= EXPLOSION_DURATION {
+            None
+        } else {
+            Some(self)
+        }
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        phi.renderer.copy_sprite(&self.sprite, self.rect);
+    }
+}
+
+struct ExplosionFactory {
+    sprite: AnimatedSprite,
+}
+
+impl ExplosionFactory {
+    fn at_center(&self, center: (f64, f64)) -> Explosion {
+        // FPS in [10.0, 30.0)
+        let mut sprite = self.sprite.clone();
+
+        Explosion {
+            sprite: sprite,
+
+            // In the screen vertically, and over the right of the screen
+            // horizontally
+            rect: Rectangle::with_size(EXPLOSION_SIDE, EXPLOSION_SIDE).center_at(center),
+
+            alive_since: 0.0,
         }
     }
 }
