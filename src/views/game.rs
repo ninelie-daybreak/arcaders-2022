@@ -153,7 +153,7 @@ impl Explosion {
     }
 
     fn update(mut self, dt: f64) -> Option<Explosion> {
-        self.alive_since = dt;
+        self.alive_since += dt;
         self.sprite.add_time(dt);
 
         if self.alive_since >= EXPLOSION_DURATION {
@@ -429,6 +429,8 @@ pub struct GameView {
     bullets: Vec<Box<dyn Bullet>>,
     asteroids: Vec<Asteroid>,
     asteroid_factory: AsteroidFactory,
+    explosions: Vec<Explosion>,
+    explosion_factory: ExplosionFactory,
 
     bg_back: Background,
     bg_middle: Background,
@@ -472,10 +474,10 @@ impl GameView {
             /// change drastically throughout the program, there is not much
             /// point in giving it a capacity.
             bullets: vec![],
-
             asteroids: vec![],
-
             asteroid_factory: Asteroid::factory(phi),
+            explosions: vec![],
+            explosion_factory: Explosion::factory(phi),
 
             bg_back: Background {
                 pos: 0.0,
@@ -602,7 +604,13 @@ impl View for GameView {
             .filter_map(|asteroid| asteroid.update(elapsed))
             .collect();
 
-
+        // Update the explosion
+        self.explosions = 
+            ::std::mem::replace(&mut self.explosions, vec![])
+            .into_iter()
+            .filter_map(|explosion| explosion.update(elapsed))
+            .collect();
+        
         // Collision detection
 
         //? We keep track of whether or not the player is alive.
@@ -646,6 +654,10 @@ impl View for GameView {
                 if asteroid_alive {
                     Some(asteroid)
                 } else {
+                    // Spawn an explosive whenever an asteroid was destroyed.
+                    self.explosions.push(
+                        self.explosion_factory.at_center(
+                            asteroid.rect().center()));
                     None
                 }
             })
@@ -701,9 +713,12 @@ impl View for GameView {
             bullet.render(phi);
         }
 
-
         for asteroid in &self.asteroids {
             asteroid.render(phi);
+        }
+
+        for explosion in &self.explosions {
+            explosion.render(phi);
         }
 
         // Render the foreground
