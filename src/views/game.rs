@@ -4,6 +4,8 @@ use crate::phi::gfx::{Sprite, CopySprite, AnimatedSprite, AnimatedSpriteDescr};
 use crate::views::shared::Background;
 use crate::views::bullets::*;
 use sdl2::pixels::Color;
+use sdl2::mixer::Music;
+use std::path::Path;
 
 
 const ASTEROID_PATH: &'static str = "assets/asteroid.png";
@@ -24,6 +26,9 @@ const EXPLOSION_DURATION: f64 = 1.0 / EXPLOSION_FPS * EXPLOSIONS_TOTAL as f64;
 /// Pixels traveled by the player's ship every second, when it is moving
 const PLAYER_SPEED:f64 = 180.0;
 const PLAYER_PATH: &'static str = "assets/spaceship.png";
+
+/// BGM path
+const MUSIC_PATH: &'static str = "assets/mdk_phoenix_orchestral.ogg";
 
 // Constants about the ship
 const PLAYER_W: f64 = 43.0;
@@ -326,6 +331,7 @@ pub struct GameView {
     asteroid_factory: AsteroidFactory,
     explosions: Vec<Explosion>,
     explosion_factory: ExplosionFactory,
+    music: Music<'static>,
 
     bg_back: Background,
     bg_middle: Background,
@@ -334,6 +340,9 @@ pub struct GameView {
 
 impl GameView {
     pub fn new(phi: &mut Phi) -> GameView {
+        let music = Music::from_file(Path::new(MUSIC_PATH)).unwrap();
+        music.play(-1).unwrap();
+        
         GameView {
             player: Player::new(phi),
             /// We start with no bullets. Because the size of the vector will
@@ -344,6 +353,8 @@ impl GameView {
             asteroid_factory: Asteroid::factory(phi),
             explosions: vec![],
             explosion_factory: Explosion::factory(phi),
+            // Audio
+            music: music,
 
             bg_back: Background {
                 pos: 0.0,

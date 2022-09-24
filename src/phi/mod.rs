@@ -91,7 +91,7 @@ where
     // Initialize audio plugin
     //? We will stick to the Ogg format throughout this article. However, you
     //? can easily require other ones.
-    let _mixer_context = ::sdl2::mixer::init(::sdl2::mixer::InitFlag::OGG).unwrap();
+    // let _mixer_context = ::sdl2::mixer::init(::sdl2::mixer::InitFlag::OGG).unwrap();
     //? We configure our audio context so that:
     //?   * The frequency is 44100;
     //?   * Use signed 16 bits samples, in little-endian byte order;
