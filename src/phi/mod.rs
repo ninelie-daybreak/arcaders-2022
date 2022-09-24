@@ -87,7 +87,24 @@ where
     let video = sdl_context.video().unwrap();
     let mut timer = sdl_context.timer().unwrap();
     let _image_context = ::sdl2::image::init(::sdl2::image::InitFlag::PNG).unwrap();
-    // let _ttf_context = ::sdl2::ttf::init().unwrap();
+    
+    // Initialize audio plugin
+    //? We will stick to the Ogg format throughout this article. However, you
+    //? can easily require other ones.
+    let _mixer_context = ::sdl2::mixer::init(::sdl2::mixer::InitFlag::OGG).unwrap();
+    //? We configure our audio context so that:
+    //?   * The frequency is 44100;
+    //?   * Use signed 16 bits samples, in little-endian byte order;
+    //?   * It's also stereo (2 "channels");
+    //?   * Samples are 1024 bytes in size.
+    //? You don't really need to understand what all of this means. I myself just
+    //? copy-pasted this from andelf's demo. ;-)
+    ::sdl2::mixer::open_audio(44100, ::sdl2::mixer::AUDIO_S16LSB, 2, 1024).unwrap();
+    //? This function asks us how many channels we wish to allocate for our game.
+    //? That is, how many sounds do we wish to be able to play at the same time?
+    //? While testing, 16 channels seemed to be sufficient. Which means that we
+    //? should probably request 32 of 'em just in case. :-°
+    ::sdl2::mixer::allocate_channels(32);
 
     // Create the window
     let window = video.window(title, 800, 600)
