@@ -11,7 +11,9 @@ pub struct Background {
 }
 
 impl Background {
-    pub fn render(&mut self, renderer: &mut WindowCanvas, elapsed: f64) {
+    /// Move the background proportionally to the elapsed time since the last
+    /// frame and the background's velocity.
+    pub fn update(&mut self, elapsed: f64) {
         // We define a logical position as depending solely on the time and the
         // dimensions of the image, not on the screen's size.
         let size = self.sprite.size();
@@ -19,16 +21,21 @@ impl Background {
         if self.pos > size.0 {
             self.pos -= size.0;
         }
+    }
 
-        // We determine the scale ratio of the window to the sprite.
+    /// Render the background at ist current position, and as many times as
+    /// required to fill the screen.
+    pub fn render(&self, renderer: &mut WindowCanvas) {
+        // We determine the scale ratio of the window to the sprte.
+        let size = self.sprite.size();
         let (win_w, win_h) = renderer.output_size().unwrap();
         let scale = win_h as f64 / size.1;
 
-        // We render as many copies of the background as necessary to fill the screen
+        // We render as many copies of the background as necessary to fill
+        // the screen.
         let mut physical_left = -self.pos * scale;
 
         while physical_left < win_w as f64 {
-            //? While the left of the image is still inside of the window...
             renderer.copy_sprite(&self.sprite, Rectangle {
                 x: physical_left,
                 y: 0.0,
@@ -38,5 +45,5 @@ impl Background {
 
             physical_left += size.0 * scale;
         }
-    }
+    }   
 }

@@ -43,9 +43,9 @@ impl MainMenuView {
         MainMenuView {
             actions: vec![
                 Action::new(phi, "New Game", Box::new(|phi| {
-                    ViewAction::ChangeView(Box::new(crate::views::game::GameView::new(phi)))
+                    ViewAction::Render(Box::new(crate::views::game::GameView::new(phi)))
                 })),
-                Action::new(phi, "Quit", Box::new(|phi| {
+                Action::new(phi, "Quit", Box::new(|_| {
                     ViewAction::Quit
                 })),
             ],
@@ -73,19 +73,20 @@ impl MainMenuView {
 }
 
 impl View for MainMenuView {
-    fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
+    fn update(mut self: Box<Self>, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit || phi.events.now.key_escape == Some(true) {
             return ViewAction::Quit;
         }
 
-        if phi.events.now.key_space == Some(true) {
-            return (self.actions[self.selected as usize].func)(phi);
-
+        // Execute the currently selected action if requested
+        if phi.events.now.key_space == Some(true) || 
+           phi.events.now.key_enter == Some(true) {
+               return (self.actions[self.selected as usize].func)(phi);
         }
 
+        // Change the selected action using the keyboard
         if phi.events.now.key_up == Some(true) {
             self.selected -= 1;
-
             if self.selected < 0 {
                 self.selected = self.actions.len() as i8 - 1;
             }
@@ -93,21 +94,29 @@ impl View for MainMenuView {
 
         if phi.events.now.key_down == Some(true) {
             self.selected += 1;
-
             if self.selected >= self.actions.len() as i8 {
                 self.selected = 0;
             }
         }
 
-        // Clear the screen
+        // Update the backgrounds
+        self.bg_back.update(elapsed);
+        self.bg_middle.update(elapsed);
+        self.bg_front.update(elapsed);
+
+        ViewAction::Render(self)
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        // Clear the screen.
         phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
         phi.renderer.clear();
 
         // Render the backgrounds
-        self.bg_back.render(&mut phi.renderer, elapsed);
-        self.bg_middle.render(&mut phi.renderer, elapsed);
-        self.bg_front.render(&mut phi.renderer, elapsed);
-
+        self.bg_back.render(&mut phi.renderer);
+        self.bg_middle.render(&mut phi.renderer);
+        self.bg_front.render(&mut phi.renderer);
+        
         // Definitions for the menu's layout
         let (win_w, win_h) = phi.output_size();
         let label_h = 50.0;
@@ -116,16 +125,16 @@ impl View for MainMenuView {
         let box_h = self.actions.len() as f64 * label_h;
         let margin_h = 10.0;
 
-        // Render the border of the colored box which holds the labels
-        phi.renderer.set_draw_color(Color::RGB(70, 15, 70));
-        phi.renderer.fill_rect(Rectangle {
-            w: box_w + border_width * 2.0,
-            h: box_h + border_width * 2.0 + margin_h * 2.0,
-            x: (win_w - box_w) / 2.0 - border_width,
-            y: (win_h - box_h) / 2.0 - margin_h - border_width,
-        }.to_sdl()).unwrap();
+         // Render the border of the colored box which holds the labels
+         phi.renderer.set_draw_color(Color::RGB(70, 15, 70));
+         phi.renderer.fill_rect(Rectangle {
+             w: box_w + border_width * 2.0,
+             h: box_h + border_width * 2.0 + margin_h * 2.0,
+             x: (win_w - box_w) / 2.0 - border_width,
+             y: (win_h - box_h) / 2.0 - margin_h - border_width,
+         }.to_sdl()).unwrap();
 
-        // Render the colored box which holds the labels
+         // Render the colored box which holds the labels
         phi.renderer.set_draw_color(Color::RGB(140, 30, 140));
         phi.renderer.fill_rect(Rectangle {
             w: box_w,
@@ -134,27 +143,25 @@ impl View for MainMenuView {
             y: (win_h - box_h) / 2.0 - margin_h,
         }.to_sdl()).unwrap();
 
-
-        for(i, action) in self.actions.iter().enumerate() {
+        // Render the labels in the menu
+        for (i, action) in self.actions.iter().enumerate() {
             if self.selected as usize == i {
-                let(w, h) = action.hover_sprite.size();
+                let (w, h) = action.hover_sprite.size();
                 phi.renderer.copy_sprite(&action.hover_sprite, Rectangle {
-                    x: (win_w - w) / 2.0,
-                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                     w: w,
                     h: h,
+                    x: (win_w - w) / 2.0,
+                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                 });
             } else {
-                let(w, h) = action.idle_sprite.size();
+                let (w, h) = action.idle_sprite.size();
                 phi.renderer.copy_sprite(&action.idle_sprite, Rectangle {
-                    x: (win_w - w) / 2.0,
-                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                     w: w,
                     h: h,
+                    x: (win_w - w) / 2.0,
+                    y: (win_h - box_h + label_h - h) / 2.0 + label_h * i as f64,
                 });
             }
         }
-
-        ViewAction::None
     }
 }

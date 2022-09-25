@@ -378,20 +378,141 @@ impl GameView {
 }
 
 impl View for GameView {
-    fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
+    fn update(mut self: Box<Self>, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit {
-            //? Notice that `self` is not passed to `Quit`, therefore it will go
-            //? out of scope as the function returns. This means that our view
-            //? will be dropped just before the method returns.
             return ViewAction::Quit;
         }
 
-        if phi.events.now.key_escape == Some(true) {
-            // Render a new view instead
-            return ViewAction::Render(Box::new(
-                ::views::main::MainMenuView::with_game_state(self)));
+        {
+            let game = &mut *self;
+
+            game.player.update(phi, elapsed);
+
+            game.music.play(-1).unwrap();
+
+            // Update the bullets
+            game.bullets = 
+                ::std::mem::replace(&mut game.bullets, vec![])
+                .into_iter()
+                .filter_map(|bullet| bullet.update(phi, elapsed))
+                .collect();
+    
+            // Update the asteroids
+            game.asteroids =
+                ::std::mem::replace(&mut game.asteroids, vec![])
+                .into_iter()
+                .filter_map(|asteroid| asteroid.update(elapsed))
+                .collect();
+    
+            // Update the explosions
+            game.explosions =
+                ::std::mem::replace(&mut game.explosions, vec![])
+                .into_iter()
+                .filter_map(|explosion| explosion.update(elapsed))
+                .collect();
+            
+            // Collision detection
+    
+            let mut player_alive = true;
+    
+            let mut transition_bullets: Vec<_> =
+                ::std::mem::replace(&mut game.bullets, vec![])
+                .into_iter()
+                .map(|bullet| MaybeAlive { alive: true, value: bullet })
+                .collect();
+    
+            game.asteroids =
+                ::std::mem::replace(&mut game.asteroids, vec![])
+                .into_iter()
+                .filter_map(|asteroid| {
+                    // By default, the asteroid has not been in a collision.
+                    let mut asteroid_alive = true;
+
+                    for bullet in &mut transition_bullets {
+                        if asteroid.rect().overlaps(bullet.value.rect()) {
+                            asteroid_alive = false;
+                            bullet.alive = false;
+                        }
+                    }
+
+                    // The player's ship is destroyed if it is hit by an asteroid.
+                    // In which case, the asteroid is also destroyed.
+                    if asteroid.rect().overlaps(game.player.rect) {
+                        asteroid_alive = false;
+                        player_alive = false;
+                    }
+
+                    if asteroid_alive {
+                        Some(asteroid)
+                    } else {
+                        // Spawn an explosive wherever an asteroid was destroyed.
+                        game.explosions.push(
+                            game.explosion_factory.at_center(
+                                asteroid.rect().center()));
+                        None
+                    }
+                })
+                .collect();
+    
+            game.bullets = transition_bullets.into_iter()
+                .filter_map(MaybeAlive::as_option)
+                .collect();
+
+            // TODO:
+            // For the moment, we won'tdo anything about the player dying. This will be
+            // the subject of a future episode.
+            if !player_alive {
+                println!("The player's ship has been destroyed.");
+            }
+    
+            // Allow the player to shoot after the bullets are updated, so that,
+            // when rendered for the first time, they are drawn wherever they
+            // spawned.
+            if phi.events.now.key_space == Some(true) {
+                game.bullets.append(&mut game.player.spawn_bullets());
+            }
+    
+            // Randomly create an asteroid about once every 100 frames, that is,
+            // a bit more often than once every two seconds.
+            if ::rand::random::<usize>() % 100  == 0 {
+                game.asteroids.push(game.asteroid_factory.random(phi));
+            }
+    
+            // Update the backgrounds
+            game.bg_back.update(elapsed);
+            game.bg_middle.update(elapsed);
+            game.bg_front.update(elapsed);
+        }
+        // Update the player
+        ViewAction::Render(self)
+    }
+
+    fn render(&self, phi: &mut Phi) {
+        // Clear the scene
+        phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
+        phi.renderer.clear();
+
+        // Render the Backgrounds
+        self.bg_back.render(&mut phi.renderer);
+        self.bg_middle.render(&mut phi.renderer);
+
+        // Render the entities
+
+        self.player.render(phi);
+
+        for bullet in &self.bullets {
+            bullet.render(phi);
         }
 
-        ViewAction::Render(self)
+        for asteroid in &self.asteroids {
+            asteroid.render(phi);
+        }
+
+        for explosion in &self.explosions {
+            explosion.render(phi);
+        }
+
+        // Render the foreground
+        self.bg_front.render(&mut phi.renderer);
     }
 }
