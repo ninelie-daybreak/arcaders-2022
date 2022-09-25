@@ -380,146 +380,18 @@ impl GameView {
 impl View for GameView {
     fn render(&mut self, phi: &mut Phi, elapsed: f64) -> ViewAction {
         if phi.events.now.quit {
+            //? Notice that `self` is not passed to `Quit`, therefore it will go
+            //? out of scope as the function returns. This means that our view
+            //? will be dropped just before the method returns.
             return ViewAction::Quit;
         }
 
         if phi.events.now.key_escape == Some(true) {
-            return ViewAction::ChangeView(Box::new(
-                crate::views::main_menu::MainMenuView::new(phi)
-            ))
+            // Render a new view instead
+            return ViewAction::Render(Box::new(
+                ::views::main::MainMenuView::with_game_state(self)));
         }
 
-        self.player.update(phi, elapsed);
-        
-        // Set `self.bullets` to be the empty vector, and put its content inside of 
-        // `old_bullets`, which we can move without borrow-checker issues.
-        let old_bullets = ::std::mem::replace(&mut self.bullets, vec![]);
-        
-        // Upon assignment, the old value of `self.bullets`, namely the empty vector,
-        // will be freed automatically, because its owner no longer refers to it.
-        // We can then update the bullet quite simply.
-        self.bullets = 
-            old_bullets.into_iter()
-            .filter_map(|bullet| bullet.update(phi, elapsed))
-            .collect();
-        
-        // Update the asteroid
-        self.asteroids =
-            ::std::mem::replace(&mut self.asteroids, vec![])
-            .into_iter()
-            .filter_map(|asteroid| asteroid.update(elapsed))
-            .collect();
-
-        // Update the explosion
-        self.explosions = 
-            ::std::mem::replace(&mut self.explosions, vec![])
-            .into_iter()
-            .filter_map(|explosion| explosion.update(elapsed))
-            .collect();
-        
-        // Collision detection
-
-        //? We keep track of whether or not the player is alive.
-        let mut player_alive = true;
-
-        //? First, go through the bullets and wrap them in a `MaybeAlive`, so that
-        //? we can keep track of which got into a collision and which did not
-        let mut transition_bullets: Vec<_> = 
-            ::std::mem::replace(&mut self.bullets, vec![])
-            .into_iter()
-            .map(|bullet| MaybeAlive { alive: true, value: bullet })
-            .collect();
-
-        self.asteroids = 
-            ::std::mem::replace(&mut self.asteroids, vec![])
-            .into_iter()
-            .filter_map(|asteroid| {
-                // By default, the asteroid has not been in a collision.
-                let mut asteroid_alive = true;
-
-                for bullet in &mut transition_bullets {
-                    //? Notice that we refer to the bullet as `bullet.value`
-                    //? because it has been wrapped in `MaybeAlive`.
-                    if asteroid.rect().overlaps(bullet.value.rect()) {
-                        asteroid_alive = false;
-                        //? We go through every bullet and `kill` those that collide
-                        //? with the asteroid. We do this for every asteroid.
-                        bullet.alive = false;
-                    }
-                }
-
-                //? The player's ship is destroyed if it is hit by an asteroid.
-                //? In which case, the asteroid is also destroyed.
-                if asteroid.rect().overlaps(self.player.rect) {
-                    asteroid_alive = false;
-                    player_alive = false;
-                }
-
-                //? Then, we use the magic of `filter_map` to keep only the asteroids
-                //? that didn't explode.
-                if asteroid_alive {
-                    Some(asteroid)
-                } else {
-                    // Spawn an explosive whenever an asteroid was destroyed.
-                    self.explosions.push(
-                        self.explosion_factory.at_center(
-                            asteroid.rect().center()));
-                    None
-                }
-            })
-            .collect();
-
-
-        //? Finally, we use once again the magic of `filter_map` to keep only
-        //? the bullets that are still alive.
-        self.bullets = transition_bullets.into_iter()
-            .filter_map(MaybeAlive::as_option)
-            .collect();
-        
-        // For the moment, we won't do anything about the player dying. This will be
-        // the subject of a future episode.
-        if !player_alive {
-            println!("The player's ship has been destroyed.");
-        }
-        
-        // Allow the player to shoot after the bullets are updated, so that,
-        // when rendered for the first time, they are drawn wherever they
-        // spawned.
-        if phi.events.now.key_space == Some(true) {
-            self.bullets.append(&mut self.player.spawn_bullets());
-        }
-
-        if ::rand::random::<usize>() % 100 == 0 {
-            self.asteroids.push(self.asteroid_factory.random(phi));
-        }
-        
-        // Render the scene
-        phi.renderer.set_draw_color(Color::RGB(0, 0, 0));
-        phi.renderer.clear();
-
-        // Render the Backgrounds
-        self.bg_back.render(&mut phi.renderer, elapsed);
-        self.bg_middle.render(&mut phi.renderer, elapsed);
-
-        // Render the entities
-        self.player.render(phi);
-
-        // Render the bullets
-        for bullet in &self.bullets {
-            bullet.render(phi);
-        }
-
-        for asteroid in &self.asteroids {
-            asteroid.render(phi);
-        }
-
-        for explosion in &self.explosions {
-            explosion.render(phi);
-        }
-
-        // Render the foreground
-        self.bg_front.render(&mut phi.renderer, elapsed);
-
-        ViewAction::None
+        ViewAction::Render(self)
     }
 }
