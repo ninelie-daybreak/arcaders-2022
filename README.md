@@ -8,7 +8,7 @@
 
 1. [A Simple Window](https://github.com/ninelie-daybreak/arcaders-2022/blob/main/tutorial/1.%20A%20Simple%20Window.md)，本章用来安装 `SDL2`
 2. [Event Handling](https://github.com/ninelie-daybreak/arcaders-2022/blob/main/tutorial/2.%20Event%20Handling.md)，本章用来讨论 `Rust` 的生命周期
-3. [More Event Handing](https://github.com/ninelie-daybreak/arcaders-2022)，本章用来讨论设计宏
+3. [More Event Handing](https://github.com/ninelie-daybreak/arcaders-2022/blob/main/tutorial/3.%20More%20Event%20Handling.md)，本章用来讨论设计宏
 4. [Views](https://github.com/ninelie-daybreak/arcaders-2022)，本章中将学习 `boxes`，`pattern matching`， `trait objects` 和 `dynamic dispatch` 等相关知识
 5. [Switching Views](https://github.com/ninelie-daybreak/arcaders-2022)， 本章将会使用 `boxes`，`pattern matching`， `trait objects` 和 `dynamic dispatch`
 6. [A Moving Rectangle](https://github.com/ninelie-daybreak/arcaders-2022)， 本章将绘制相关画面
