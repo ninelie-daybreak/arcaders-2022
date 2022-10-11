@@ -7,7 +7,7 @@
 简介：该系列的目标是通过开发一个简单的老式射击游戏来探索 `Rust` 编程语言和生态系统，教程由 `13` 个部分组成（已经基本完成，正在整理，后续会陆续更新）：
 
 1. [A Simple Window](https://github.com/ninelie-daybreak/arcaders-2022/blob/main/tutorial/1.%20A%20Simple%20Window.md)，本章用来安装 `SDL2`
-2. [Event Handling](https://github.com/ninelie-daybreak/arcaders-2022)，本章用来讨论 `Rust` 的生命周期
+2. [Event Handling](https://github.com/ninelie-daybreak/arcaders-2022/blob/main/tutorial/2.%20Event%20Handling.md)，本章用来讨论 `Rust` 的生命周期
 3. [More Event Handing](https://github.com/ninelie-daybreak/arcaders-2022)，本章用来讨论设计宏
 4. [Views](https://github.com/ninelie-daybreak/arcaders-2022)，本章中将学习 `boxes`，`pattern matching`， `trait objects` 和 `dynamic dispatch` 等相关知识
 5. [Switching Views](https://github.com/ninelie-daybreak/arcaders-2022)， 本章将会使用 `boxes`，`pattern matching`， `trait objects` 和 `dynamic dispatch`
